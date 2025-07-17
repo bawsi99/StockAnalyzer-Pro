@@ -1,1 +1,3 @@
-machine learning, real market summary
+machine learning for pattern prediction , real market summary, to check last change - Now let me create a market data integration module to handle real market data for beta and correlation calculations:(how accurate is this)    
+
+check overall last prompt changes(recheck)
