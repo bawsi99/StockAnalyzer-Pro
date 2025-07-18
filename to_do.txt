@@ -2,5 +2,9 @@ machine learning for pattern prediction , real market summary, to check last cha
 
 check overall last prompt changes(recheck)
 
-
 category of each stock
+
+check stock categorization 
+
+
+check 
