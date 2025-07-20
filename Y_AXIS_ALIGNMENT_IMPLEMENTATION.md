@@ -15,21 +15,21 @@ Previously, y-axis values had varying character widths, causing misalignment bet
 Each chart type now uses a consistent character width with proper padding:
 
 #### 1. Main Price Chart (Candlestick/Line)
-- **Width**: 8 characters
+- **Width**: 7 characters
 - **Format**: `" 123.45"` (padded with spaces)
-- **Logic**: `price.toFixed(2).padStart(8, ' ')`
+- **Logic**: `price.toFixed(2).padStart(7, ' ')`
 
 #### 2. Volume Chart
-- **Width**: 8 characters + thin space
-- **Format**: `"  40.0M "` (with thin space for perfect alignment)
+- **Width**: 7 characters
+- **Format**: `" 40.0M"` (padded with spaces)
 - **Logic**: 
   ```typescript
   if (price >= 1000000) {
-    return `${(price / 1000000).toFixed(1)}M${thinSpace}`.padStart(8, ' ');
+    return `${(price / 1000000).toFixed(1)}M`.padStart(7, ' ');
   } else if (price >= 1000) {
-    return `${(price / 1000).toFixed(1)}K${thinSpace}`.padStart(8, ' ');
+    return `${(price / 1000).toFixed(1)}K`.padStart(7, ' ');
   } else {
-    return `${price.toFixed(1)}${thinSpace}`.padStart(8, ' ');
+    return `${price.toFixed(1)}`.padStart(7, ' ');
   }
   ```
 
@@ -39,9 +39,9 @@ Each chart type now uses a consistent character width with proper padding:
 - **Logic**: `price.toFixed(2).padStart(7, ' ')`
 
 #### 4. MACD Chart
-- **Width**: 8 characters
-- **Format**: `"  -0.123"` (padded with spaces)
-- **Logic**: `price.toFixed(3).padStart(8, ' ')` for precision
+- **Width**: 7 characters
+- **Format**: `" -0.123"` (padded with spaces)
+- **Logic**: `price.toFixed(3).padStart(7, ' ')` for precision
 
 #### 5. Stochastic Chart
 - **Width**: 7 characters
@@ -49,9 +49,9 @@ Each chart type now uses a consistent character width with proper padding:
 - **Logic**: `price.toFixed(2).padStart(7, ' ')`
 
 #### 6. ATR Chart
-- **Width**: 8 characters
-- **Format**: `"  12.34"` (padded with spaces)
-- **Logic**: `price.toFixed(2).padStart(8, ' ')`
+- **Width**: 7 characters
+- **Format**: `" 12.34"` (padded with spaces)
+- **Logic**: `price.toFixed(2).padStart(7, ' ')`
 
 ## Implementation Details
 
@@ -59,12 +59,14 @@ Each chart type now uses a consistent character width with proper padding:
 
 1. **`frontend/src/components/charts/EnhancedMultiPaneChart.tsx`**
    - Updated main chart theme priceFormatter
-   - Updated MACD chart priceFormatter
-   - Updated Stochastic chart priceFormatter
-   - Updated ATR chart priceFormatter
+   - Updated volume chart priceFormatter
+   - Added MACD chart priceFormatter
+   - Added Stochastic chart priceFormatter
+   - Added ATR chart priceFormatter
 
 2. **`frontend/src/components/charts/MultiPaneChart.tsx`**
    - Updated main chart priceFormatter for consistency
+   - Updated volume chart priceFormatter for consistency
 
 ### Key Features
 
@@ -80,8 +82,8 @@ The implementation uses JavaScript's `padStart()` method to ensure consistent ch
 ```typescript
 // Example for MACD chart
 priceFormatter: (price: number) => {
-  const formatted = price >= 1 ? price.toFixed(3) : price.toPrecision(4);
-  return formatted.padStart(8, ' ');
+  const formatted = price.toFixed(3);
+  return formatted.padStart(7, ' ');
 }
 ```
 
