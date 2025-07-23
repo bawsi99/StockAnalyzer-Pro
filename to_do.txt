@@ -8,3 +8,9 @@ check stock categorization
 
 
 check backend data quality run analysis and check 
+
+
+5. Advanced (Optional)
+Add scenario/risk simulation (e.g., “If volatility increases, trend may change”).
+Add candlestick pattern recognition per timeframe.
+Add probabilistic outcome trees for risk management.
