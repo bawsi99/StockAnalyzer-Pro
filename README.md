@@ -223,3 +223,11 @@ For support and questions:
 ---
 
 **Disclaimer**: This tool is for educational and research purposes only. Trading decisions should be based on comprehensive analysis and professional advice. Past performance does not guarantee future results. 
+
+
+
+
+
+
+
+please provide a better solution, does it require a more major refactor, changing of the container,/page, or changing of libraries, or anything like that 
