@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <h1>WebSocket Connection Test</h1>
+    <div id="status">Connecting...</div>
+    <div id="messages"></div>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+
+        function addMessage(message) {
+            const div = document.createElement('div');
+            div.textContent = new Date().toLocaleTimeString() + ': ' + message;
+            messagesDiv.appendChild(div);
+        }
+
+        // First get a token
+        fetch('http://localhost:8000/auth/token?user_id=test_user', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            const token = data.token;
+            addMessage('Got token: ' + token.substring(0, 20) + '...');
+            
+            // Connect to WebSocket
+            const ws = new WebSocket(`ws://localhost:8000/ws/stream?token=${token}`);
+            
+            ws.onopen = function() {
+                statusDiv.textContent = 'Connected!';
+                statusDiv.style.color = 'green';
+                addMessage('WebSocket connected');
+                
+                // Subscribe to RELIANCE
+                const subscribeMsg = {
+                    action: 'subscribe',
+                    symbols: ['RELIANCE'],
+                    timeframes: ['1m']
+                };
+                ws.send(JSON.stringify(subscribeMsg));
+                addMessage('Sent subscription: ' + JSON.stringify(subscribeMsg));
+            };
+            
+            ws.onmessage = function(event) {
+                addMessage('Received: ' + event.data);
+            };
+            
+            ws.onerror = function(error) {
+                statusDiv.textContent = 'Error!';
+                statusDiv.style.color = 'red';
+                addMessage('WebSocket error: ' + error);
+            };
+            
+            ws.onclose = function() {
+                statusDiv.textContent = 'Disconnected';
+                statusDiv.style.color = 'red';
+                addMessage('WebSocket closed');
+            };
+        })
+        .catch(error => {
+            statusDiv.textContent = 'Failed to get token';
+            statusDiv.style.color = 'red';
+            addMessage('Error getting token: ' + error);
+        });
+    </script>
+</body>
+</html> 
