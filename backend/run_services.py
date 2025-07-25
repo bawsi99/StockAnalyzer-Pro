@@ -24,7 +24,7 @@ def print_banner():
     print("=" * 60)
     print("📊 Data Service:     http://localhost:8000")
     print("🧠 Analysis Service: http://localhost:8001")
-    print("🔗 WebSocket:        ws://localhost:8000/ws/stream")
+    print("🔗 WebSocket Stream: ws://localhost:8081/ws/stream")
     print("=" * 60)
     print("Press Ctrl+C to stop all services")
     print("=" * 60)
@@ -33,7 +33,7 @@ def check_ports():
     """Check if ports are available."""
     import socket
     
-    ports_to_check = [8000, 8001]
+    ports_to_check = [8000, 8001, 8081]
     unavailable_ports = []
     
     for port in ports_to_check:
@@ -53,13 +53,15 @@ def check_ports():
 def start_service(service_name, script_path, port):
     """Start a service using subprocess."""
     try:
+        # Change to backend directory for proper module resolution
         process = subprocess.Popen(
             [sys.executable, script_path],
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.STDOUT,  # Redirect stderr to stdout
             text=True,
             bufsize=1,
-            universal_newlines=True
+            universal_newlines=True,
+            cwd=backend_dir  # Set working directory to backend
         )
         print(f"✅ {service_name} started (PID: {process.pid})")
         return process
@@ -74,15 +76,19 @@ def monitor_processes(processes):
             # Check if any process has died
             for name, process in processes.items():
                 if process.poll() is not None:
-                    print(f"❌ {name} has stopped unexpectedly")
+                    print(f"❌ {name} has stopped unexpectedly (exit code: {process.returncode})")
                     return False
             
-            # Print any available output
+            # Print any available output from all processes
             for name, process in processes.items():
                 if process.stdout:
-                    output = process.stdout.readline()
-                    if output:
-                        print(f"[{name}] {output.strip()}")
+                    try:
+                        # Non-blocking read
+                        output = process.stdout.readline()
+                        if output:
+                            print(f"[{name}] {output.strip()}")
+                    except Exception as e:
+                        print(f"Error reading output from {name}: {e}")
             
             time.sleep(0.1)
             
@@ -95,14 +101,16 @@ def stop_processes(processes):
     for name, process in processes.items():
         if process and process.poll() is None:
             print(f"🛑 Stopping {name}...")
-            process.terminate()
             try:
+                process.terminate()
                 process.wait(timeout=5)
                 print(f"✅ {name} stopped")
             except subprocess.TimeoutExpired:
                 print(f"⚠️  Force killing {name}...")
                 process.kill()
                 process.wait()
+            except Exception as e:
+                print(f"Error stopping {name}: {e}")
 
 def main():
     """Main function to run both services."""
@@ -115,7 +123,8 @@ def main():
     # Define services
     services = {
         "Data Service": "start_data_service.py",
-        "Analysis Service": "start_analysis_service.py"
+        "Analysis Service": "start_analysis_service.py",
+        "WebSocket Stream Service": "start_websocket_service.py"
     }
     
     # Start services
@@ -126,7 +135,17 @@ def main():
             print(f"❌ Script not found: {script_path}")
             return 1
         
-        process = start_service(service_name, script_path, 8000 if "Data" in service_name else 8001)
+        # Determine port based on service name
+        if "Data" in service_name:
+            port = 8000
+        elif "Analysis" in service_name:
+            port = 8001
+        elif "WebSocket" in service_name:
+            port = 8081
+        else:
+            port = 8000
+            
+        process = start_service(service_name, script_path, port)
         if process:
             processes[service_name] = process
         else:
@@ -141,13 +160,20 @@ def main():
     # Check if services are running
     for name, process in processes.items():
         if process.poll() is not None:
-            print(f"❌ {name} failed to start")
+            print(f"❌ {name} failed to start (exit code: {process.returncode})")
+            # Print any error output
+            if process.stdout:
+                output = process.stdout.read()
+                if output:
+                    print(f"Error output from {name}:")
+                    print(output)
             stop_processes(processes)
             return 1
     
     print("✅ All services started successfully!")
     print("🌐 Data Service:     http://localhost:8000/health")
     print("🧠 Analysis Service: http://localhost:8001/health")
+    print("🔗 WebSocket Stream: http://localhost:8081/health")
     print("\n📝 Logs will appear below:")
     print("-" * 60)
     
