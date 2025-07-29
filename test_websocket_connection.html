@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        .warning { background-color: #fff3cd; color: #856404; }
+        #messages { height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background: #f9f9f9; }
+        .message { margin: 5px 0; padding: 5px; border-left: 3px solid #007bff; }
+        .error-msg { border-left-color: #dc3545; }
+        .success-msg { border-left-color: #28a745; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Connection Test</h1>
+    
+    <div id="status" class="status info">Initializing...</div>
+    
+    <div>
+        <button id="connectBtn" onclick="connectWebSocket()">Connect to WebSocket</button>
+        <button id="disconnectBtn" onclick="disconnectWebSocket()" disabled>Disconnect</button>
+        <button id="subscribeBtn" onclick="subscribeToSymbol()" disabled>Subscribe to RELIANCE</button>
+        <button id="unsubscribeBtn" onclick="unsubscribeFromSymbol()" disabled>Unsubscribe</button>
+    </div>
+    
+    <div>
+        <h3>Messages:</h3>
+        <div id="messages"></div>
+    </div>
+    
+    <div>
+        <h3>Connection Stats:</h3>
+        <div id="stats"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        let isConnected = false;
+        let messageCount = 0;
+        let lastMessageTime = null;
+
+        function log(message, type = 'info') {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-msg`;
+            messageDiv.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            messageCount++;
+            lastMessageTime = new Date();
+            updateStats();
+        }
+
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        function updateStats() {
+            const statsDiv = document.getElementById('stats');
+            statsDiv.innerHTML = `
+                <p><strong>Connected:</strong> ${isConnected ? 'Yes' : 'No'}</p>
+                <p><strong>Messages Received:</strong> ${messageCount}</p>
+                <p><strong>Last Message:</strong> ${lastMessageTime ? lastMessageTime.toLocaleTimeString() : 'None'}</p>
+                <p><strong>WebSocket State:</strong> ${ws ? ws.readyState : 'No connection'}</p>
+            `;
+        }
+
+        async function getAuthToken() {
+            try {
+                // Try to get token from data service first
+                const response = await fetch('http://localhost:8000/auth/token?user_id=' + crypto.randomUUID(), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`Got auth token from data service: ${data.token.substring(0, 20)}...`, 'success');
+                    return data.token;
+                } else {
+                    log(`Failed to get token from data service: ${response.status}`, 'error');
+                    return null;
+                }
+            } catch (error) {
+                log(`Error getting auth token: ${error.message}`, 'error');
+                // For testing, we can proceed without authentication if the websocket service doesn't require it
+                return null;
+            }
+        }
+
+        async function connectWebSocket() {
+            if (isConnected) {
+                log('⚠️ Already connected', 'warning');
+                return;
+            }
+            
+            updateStatus('Getting authentication token...', 'info');
+            const token = await getAuthToken();
+            
+            try {
+                const wsUrl = token 
+                    ? `ws://localhost:8081/ws/stream?token=${token}`
+                    : 'ws://localhost:8081/ws/stream';
+                
+                log(`📡 Connecting to ${wsUrl}`, 'info');
+                
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function() {
+                    isConnected = true;
+                    updateStatus('✅ WebSocket connected successfully', 'success');
+                    log('✅ WebSocket connected', 'success');
+                    
+                    document.getElementById('connectBtn').disabled = true;
+                    document.getElementById('disconnectBtn').disabled = false;
+                    document.getElementById('subscribeBtn').disabled = false;
+                    updateStats();
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(`📨 Received: ${JSON.stringify(data, null, 2)}`, 'success');
+                    } catch (error) {
+                        log(`📨 Received raw data: ${event.data}`, 'info');
+                    }
+                };
+                
+                ws.onerror = function(error) {
+                    updateStatus('❌ WebSocket error', 'error');
+                    log(`❌ WebSocket error: ${error}`, 'error');
+                };
+                
+                ws.onclose = function(event) {
+                    isConnected = false;
+                    updateStatus('🔌 WebSocket closed', 'warning');
+                    log(`🔌 WebSocket closed: ${event.code} - ${event.reason}`, 'warning');
+                    
+                    document.getElementById('connectBtn').disabled = false;
+                    document.getElementById('disconnectBtn').disabled = true;
+                    document.getElementById('subscribeBtn').disabled = true;
+                    document.getElementById('unsubscribeBtn').disabled = true;
+                    updateStats();
+                };
+                
+            } catch (error) {
+                updateStatus('❌ Failed to create WebSocket connection', 'error');
+                log(`❌ Connection error: ${error.message}`, 'error');
+            }
+        }
+
+        function disconnectWebSocket() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function subscribeToSymbol() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('❌ WebSocket not connected', 'error');
+                return;
+            }
+            
+            const subscription = {
+                action: 'subscribe',
+                symbols: ['RELIANCE'],
+                timeframes: ['1m']
+            };
+            
+            ws.send(JSON.stringify(subscription));
+            log(`📤 Subscribed to RELIANCE: ${JSON.stringify(subscription)}`, 'info');
+            document.getElementById('unsubscribeBtn').disabled = false;
+        }
+
+        function unsubscribeFromSymbol() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('❌ WebSocket not connected', 'error');
+                return;
+            }
+            
+            const unsubscription = {
+                action: 'unsubscribe',
+                symbols: ['RELIANCE'],
+                timeframes: ['1m']
+            };
+            
+            ws.send(JSON.stringify(unsubscription));
+            log(`📤 Unsubscribed from RELIANCE: ${JSON.stringify(unsubscription)}`, 'info');
+            document.getElementById('unsubscribeBtn').disabled = true;
+        }
+
+        // Initialize
+        updateStats();
+        log('🚀 WebSocket test page loaded', 'info');
+    </script>
+</body>
+</html> 
