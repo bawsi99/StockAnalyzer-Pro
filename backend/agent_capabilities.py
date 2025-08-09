@@ -412,6 +412,7 @@ class StockAnalysisOrchestrator:
             'consensus': consensus,
             'indicators': serializable_indicators,
             'overlays': overlays,
+            'charts': chart_paths or {},
             'ai_analysis': ai_analysis,
             'indicator_summary_md': ind_summary_md,
             'chart_insights': chart_insights_md,

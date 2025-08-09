@@ -153,6 +153,10 @@ async def analyze(request: AnalysisRequest):
         serialized_data = make_json_serializable(data_dict)
 
         # Clean, efficient response
+        # Convert charts (if any) to base64 for frontend display
+        if isinstance(serialized_results, dict) and isinstance(serialized_results.get('charts'), dict):
+            serialized_results['charts'] = convert_charts_to_base64(serialized_results['charts'])
+
         response = {
             "success": True,
             "stock_symbol": request.stock,
