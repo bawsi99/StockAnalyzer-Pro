@@ -2,7 +2,7 @@ import os
 import pandas as pd
 from datetime import datetime, timedelta, time as dt_time
 import logging
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, Tuple
 from kiteconnect import KiteConnect
 from kiteconnect.exceptions import TokenException, NetworkException
 import webbrowser
@@ -11,6 +11,11 @@ import json
 import hashlib
 from pathlib import Path
 import time
+import asyncio
+import aiohttp
+from concurrent.futures import ThreadPoolExecutor
+import tempfile
+from threading import RLock
 
 
 # Set up logging
@@ -39,6 +44,7 @@ class CacheManager:
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(exist_ok=True)
         self.metadata_file = self.cache_dir / "cache_metadata.json"
+        self._lock = RLock()
         self.metadata = self._load_metadata()
     
     def _load_metadata(self) -> Dict:
@@ -54,8 +60,16 @@ class CacheManager:
     def _save_metadata(self):
         """Save cache metadata to file."""
         try:
-            with open(self.metadata_file, 'w') as f:
-                json.dump(self.metadata, f)
+            with self._lock:
+                # Take a snapshot to avoid 'dictionary changed size during iteration'
+                metadata_copy = dict(self.metadata)
+                # Write atomically via temp file and replace
+                with tempfile.NamedTemporaryFile('w', delete=False, dir=str(self.cache_dir)) as tmp_file:
+                    json.dump(metadata_copy, tmp_file)
+                    tmp_file.flush()
+                    os.fsync(tmp_file.fileno())
+                    temp_path = tmp_file.name
+                os.replace(temp_path, str(self.metadata_file))
         except Exception as e:
             logger.error(f"Error saving cache metadata: {e}")
     
@@ -74,7 +88,9 @@ class CacheManager:
         cache_key = self._generate_cache_key(symbol, exchange, interval, from_date, to_date)
         cache_file = self.cache_dir / f"{cache_key}.csv"
         
-        if cache_key in self.metadata and cache_file.exists():
+        with self._lock:
+            key_present = cache_key in self.metadata
+        if key_present and cache_file.exists():
             try:
                 data = pd.read_csv(cache_file, parse_dates=['date'])
                 data.set_index('date', inplace=True)
@@ -95,15 +111,16 @@ class CacheManager:
         
         try:
             data.to_csv(cache_file)
-            self.metadata[cache_key] = {
-                'symbol': symbol,
-                'exchange': exchange,
-                'interval': interval,
-                'from_date': from_date.isoformat(),
-                'to_date': to_date.isoformat(),
-                'cached_at': datetime.now().isoformat()
-            }
-            self._save_metadata()
+            with self._lock:
+                self.metadata[cache_key] = {
+                    'symbol': symbol,
+                    'exchange': exchange,
+                    'interval': interval,
+                    'from_date': from_date.isoformat(),
+                    'to_date': to_date.isoformat(),
+                    'cached_at': datetime.now().isoformat()
+                }
+                self._save_metadata()
         except Exception as e:
             logger.error(f"Error caching data: {e}")
     
@@ -116,21 +133,56 @@ class CacheManager:
         
         return ist_time.time() < market_open or ist_time.time() > market_close
 
+def auto_refresh_token(func):
+    def wrapper(self, *args, **kwargs):
+        try:
+            return func(self, *args, **kwargs)
+        except TokenException as e:
+            logger.warning(f"Token expired or invalid in {func.__name__}: {e}. Attempting to re-authenticate...")
+            if self.authenticate():
+                try:
+                    return func(self, *args, **kwargs)
+                except Exception as e2:
+                    logger.error(f"Failed after re-authentication in {func.__name__}: {e2}")
+                    return None
+            else:
+                logger.error(f"Re-authentication failed in {func.__name__}.")
+                return None
+    return wrapper
+
 class ZerodhaDataClient:
     """
-    Client for fetching real stock data from Zerodha using the official KiteConnect API.
-    This class handles authentication, data retrieval, and basic transformations.
+    Client for fetching data from Zerodha API with async support.
+    Implements singleton pattern to ensure only one instance exists.
     """
+    
+    _instance = None
+    
+    def __new__(cls, *args, **kwargs):
+        """Implement singleton pattern to prevent multiple sessions."""
+        if cls._instance is None:
+            cls._instance = super(ZerodhaDataClient, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
     
     def __init__(self, api_key: str = None, api_secret: str = None, access_token: str = None):
         """
         Initialize the Zerodha client with authentication credentials.
         Always read the latest access and request tokens from .env.
         """
+        # Skip initialization if already initialized (singleton pattern)
+        if hasattr(self, '_initialized') and self._initialized:
+            logger.info("ZerodhaDataClient already initialized - reusing instance")
+            return
+            
         self.api_key = api_key or get_env_value("ZERODHA_API_KEY")
         self.api_secret = api_secret or get_env_value("ZERODHA_API_SECRET")
         self.access_token = access_token or get_env_value("ZERODHA_ACCESS_TOKEN")
         self.request_token = get_env_value("ZERODHA_REQUEST_TOKEN")
+        
+        # Mark as initialized
+        self._initialized = True
+        logger.info("ZerodhaDataClient initialized with new session")
 
         # Initialize KiteConnect client
         self.kite = KiteConnect(api_key=self.api_key)
@@ -145,12 +197,49 @@ class ZerodhaDataClient:
 
         # Rate limiting
         self.last_request_time = datetime.now()
-        self.min_request_interval = timedelta(seconds=1)  # Minimum time between requests
+        self.min_request_interval = timedelta(seconds=0)  # Minimum time between requests
 
         # Cache for instruments and data
         self.instruments_cache = {}
         self.data_cache = {}
         self.all_instruments = None
+        self._executor = ThreadPoolExecutor(max_workers=10)  # For running sync methods in async context
+
+        # In-memory LRU cache for historical data
+        from collections import OrderedDict
+        from threading import RLock
+        self._historical_lru: "OrderedDict[str, pd.DataFrame]" = OrderedDict()
+        self._historical_lru_capacity: int = int(os.environ.get("ZERODHA_LRU_CAPACITY", "128"))
+        self._historical_lru_lock = RLock()
+
+    def _normalize_history_key(
+        self,
+        symbol: str,
+        exchange: str,
+        interval: str,
+        from_date: datetime,
+        to_date: datetime,
+    ) -> str:
+        # Normalize dates to YYYYMMDD to maximize hits irrespective of time components
+        fd = from_date.strftime("%Y%m%d")
+        td = to_date.strftime("%Y%m%d")
+        return f"{exchange}:{symbol}:{interval}:{fd}:{td}"
+
+    def _lru_get(self, key: str) -> Optional[pd.DataFrame]:
+        with self._historical_lru_lock:
+            df = self._historical_lru.get(key)
+            if df is not None:
+                # Move to recent
+                self._historical_lru.move_to_end(key)
+            return df
+
+    def _lru_put(self, key: str, df: pd.DataFrame) -> None:
+        with self._historical_lru_lock:
+            self._historical_lru[key] = df
+            self._historical_lru.move_to_end(key)
+            # Evict oldest if over capacity
+            while len(self._historical_lru) > self._historical_lru_capacity:
+                self._historical_lru.popitem(last=False)
         
     def _save_access_token(self, access_token: str):
         """Save the access token to the .env file, replacing the old value if present."""
@@ -237,7 +326,8 @@ class ZerodhaDataClient:
                 print("Access token is still valid.")
                 logger.info("Authentication successful with existing access token")
                 return True
-            except Exception as e:
+            except TokenException as e:
+                # Only treat explicit token errors as invalidation events
                 print("Stored access token is invalid or expired. Will attempt re-authentication.")
                 logger.warning("Stored access token invalid: " + str(e))
                 # Remove invalid access_token from .env
@@ -254,6 +344,20 @@ class ZerodhaDataClient:
                     logger.error("Failed to remove invalid token from .env: " + str(env_err))
                     print("Error while updating .env")
                 self.access_token = None
+            except NetworkException as e:
+                # Network blips should not invalidate a perfectly good token
+                logger.warning(
+                    "Network error while validating existing access token; assuming token remains valid: "
+                    + str(e)
+                )
+                return True
+            except Exception as e:
+                # Any other non-token error should not nuke the token; continue optimistically
+                logger.warning(
+                    "Non-token error during access token validation; keeping token and proceeding: "
+                    + str(e)
+                )
+                return True
 
         # Always read the latest request token from .env
         self.request_token = get_env_value("ZERODHA_REQUEST_TOKEN")
@@ -266,9 +370,23 @@ class ZerodhaDataClient:
                 print("Authentication successful!")
                 logger.info("Authentication successful, new access token obtained")
                 return True
-            except Exception as e:
-                logger.error(f"Error using stored request token: {str(e)}")
+            except TokenException as e:
+                logger.error(f"Stored request token invalid or expired: {str(e)}")
                 print("Stored request token is invalid. Will need to re-authenticate.")
+            except NetworkException as e:
+                # Do not treat network errors as invalid request tokens
+                logger.warning(
+                    "Network error while exchanging stored request token; not invalidating it and will retry later: "
+                    + str(e)
+                )
+                return False
+            except Exception as e:
+                # Unknown errors - do not proceed with forced re-auth here
+                logger.warning(
+                    "Unexpected error while exchanging stored request token; not invalidating it: "
+                    + str(e)
+                )
+                return False
 
         # If no valid tokens, guide user to obtain new request token
         login_url = self.kite.login_url()
@@ -391,6 +509,7 @@ class ZerodhaDataClient:
             logger.error(f"Error getting instruments: {str(e)}")
             return None
     
+    @auto_refresh_token
     def get_instruments(self, exchange: str = None) -> Optional[pd.DataFrame]:
         """
         Get all instruments available for trading.
@@ -403,6 +522,7 @@ class ZerodhaDataClient:
         """
         return self._load_all_instruments(exchange)
     
+    @auto_refresh_token
     def get_instrument_token(self, symbol: str, exchange: str = "NSE") -> Optional[int]:
         """
         Get the instrument token for a given symbol.
@@ -437,6 +557,54 @@ class ZerodhaDataClient:
         except Exception as e:
             logger.error(f"Error getting instrument token: {str(e)}")
             return None
+
+    async def get_instrument_token_async(self, symbol: str, exchange: str = "NSE") -> Optional[int]:
+        """
+        Async version of get_instrument_token.
+        """
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            self._executor,
+            self.get_instrument_token,
+            symbol,
+            exchange
+        )
+    
+    @auto_refresh_token
+    def get_symbol_from_token(self, token: int, exchange: str = "NSE") -> Optional[str]:
+        """
+        Get the symbol for a given instrument token.
+        
+        Args:
+            token: Instrument token
+            exchange: Exchange code (default: "NSE")
+            
+        Returns:
+            str: Trading symbol if found, None otherwise
+        """
+        try:
+            # Load all instruments if not already loaded
+            instruments = self._load_all_instruments(exchange)
+
+            if instruments is None:
+                logger.error("Failed to get instruments")
+                return None
+            
+            # Find the instrument with matching token and exchange
+            instrument = instruments[(instruments['instrument_token'] == token) & 
+                                    (instruments['exchange'] == exchange)]
+            
+            if len(instrument) == 0:
+                logger.warning(f"Instrument not found for token: {token} on {exchange}")
+                return None
+            
+            # Get the trading symbol
+            symbol = instrument.iloc[0]['tradingsymbol']
+            return symbol
+            
+        except Exception as e:
+            logger.error(f"Error getting symbol from token: {str(e)}")
+            return None
     
     def _wait_for_rate_limit(self):
         """Implement rate limiting between API calls."""
@@ -447,6 +615,7 @@ class ZerodhaDataClient:
             time.sleep(sleep_time)
         self.last_request_time = datetime.now()
 
+    @auto_refresh_token
     def get_historical_data(
         self, 
         symbol: str, 
@@ -495,6 +664,23 @@ class ZerodhaDataClient:
             return None
 
         try:
+            # Build normalized key for caches (keyed by requested interval, not fetch_interval)
+            cache_key = self._normalize_history_key(symbol, exchange, interval, from_date, to_date)
+
+            # 1) In-memory LRU cache
+            cached_df = self._lru_get(cache_key)
+            if cached_df is not None:
+                logger.info(f"Cache hit (LRU) for {exchange}:{symbol} {interval} {from_date.date()}->{to_date.date()}")
+                return cached_df
+
+            # 2) Disk cache when market is closed
+            disk_cached_df = self.cache_manager.get_cached_data(symbol, exchange, interval, from_date, to_date)
+            if disk_cached_df is not None:
+                logger.info(f"Cache hit (disk) for {exchange}:{symbol} {interval} {from_date.date()}->{to_date.date()}")
+                # Place into LRU for faster subsequent access
+                self._lru_put(cache_key, disk_cached_df)
+                return disk_cached_df
+
             logger.info(f"Fetching historical data for {symbol} from {from_date} to {to_date} (interval: {interval})")
 
             # Implement rate limiting
@@ -517,6 +703,10 @@ class ZerodhaDataClient:
             # If not aggregating, return as is
             if not (aggregate_week or aggregate_month):
                 logger.info(f"Retrieved {len(df)} records for {symbol}")
+                # Save to caches
+                self._lru_put(cache_key, df)
+                # Persist to disk cache only when market is closed
+                self.cache_manager.cache_data(df, symbol, exchange, interval, from_date, to_date)
                 return df
 
             # --- Aggregation for week/month ---
@@ -540,6 +730,9 @@ class ZerodhaDataClient:
             resampled = df.resample(rule).agg(agg_dict).dropna()
             resampled.reset_index(inplace=True)
             logger.info(f"Aggregated {len(resampled)} {interval} records for {symbol}")
+            # Save to caches
+            self._lru_put(cache_key, resampled)
+            self.cache_manager.cache_data(resampled, symbol, exchange, interval, from_date, to_date)
             return resampled
 
         except TokenException as e:
@@ -552,6 +745,33 @@ class ZerodhaDataClient:
             logger.error(f"Error getting historical data: {str(e)}")
             return None
     
+    async def get_historical_data_async(
+        self, 
+        symbol: str, 
+        exchange: str = "NSE",
+        interval: str = "day", 
+        from_date: Union[str, datetime] = None,
+        to_date: Union[str, datetime] = None,
+        period: int = 365,
+        continuous: bool = False,
+    ) -> Optional[pd.DataFrame]:
+        """
+        Async version of get_historical_data for index data fetching.
+        """
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            self._executor,
+            self.get_historical_data,
+            symbol,
+            exchange,
+            interval,
+            from_date,
+            to_date,
+            period,
+            continuous
+        )
+
+    @auto_refresh_token
     def get_quote(self, symbol: str, exchange: str = "NSE") -> Optional[Dict]:
         """
         Get current market quote for a symbol.
@@ -593,6 +813,19 @@ class ZerodhaDataClient:
             print(f"Error getting quote: {str(e)}")
             return None
     
+    async def get_quote_async(self, symbol: str, exchange: str = "NSE") -> Optional[Dict]:
+        """
+        Async version of get_quote.
+        """
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            self._executor,
+            self.get_quote,
+            symbol,
+            exchange
+        )
+
+    @auto_refresh_token
     def get_market_status(self) -> Optional[Dict]:
         """
         Infer current market status based on time and quotes.
@@ -679,6 +912,15 @@ class ZerodhaDataClient:
             print(f"Error inferring market status: {str(e)}")
             return None
     
+    async def get_market_status_async(self) -> Optional[Dict]:
+        """
+        Async version of get_market_status.
+        """
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            self._executor,
+            self.get_market_status
+        )
 
 
 # Example usage

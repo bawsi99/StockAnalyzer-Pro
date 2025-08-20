@@ -199,3 +199,7 @@ dmypy.json
 
 # Test files
 test_fixes.py 
+# TraderPro generated artifacts
+backend/cache/
+backend/myenv/
+backend/.env
