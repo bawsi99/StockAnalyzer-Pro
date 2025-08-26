@@ -110,7 +110,7 @@ frontend/
 ### Prerequisites
 - **Python 3.12+** with pip
 - **Node.js 18+** with npm
-- **Redis** (optional, for enhanced caching)
+- **Redis** (for image storage and caching)
 - **Zerodha KiteConnect API** credentials
 - **Google Gemini API** key
 - **Supabase** account (for authentication and database)
@@ -145,8 +145,64 @@ frontend/
    GEMINI_API_KEY=your_gemini_api_key
    SUPABASE_URL=your_supabase_url
    SUPABASE_ANON_KEY=your_supabase_anon_key
-   REDIS_URL=redis://localhost:6379  # Optional
+   
+   # Redis Configuration (for image storage and caching)
+REDIS_URL=redis://localhost:6379/0
+REDIS_IMAGE_MAX_AGE_HOURS=24
+REDIS_IMAGE_MAX_SIZE_MB=1000
+REDIS_IMAGE_CLEANUP_INTERVAL_MINUTES=60
+REDIS_IMAGE_ENABLE_CLEANUP=true
+REDIS_IMAGE_QUALITY=85
+REDIS_IMAGE_FORMAT=PNG
+
+# Redis Cache Manager Settings
+REDIS_CACHE_ENABLE_COMPRESSION=true
+REDIS_CACHE_ENABLE_LOCAL_FALLBACK=true
+REDIS_CACHE_LOCAL_SIZE=1000
+REDIS_CACHE_CLEANUP_INTERVAL_MINUTES=60
    ```
+
+### Redis Setup
+
+The system uses Redis for storing generated chart images and caching data. This provides better scalability and automatic cleanup compared to local file storage.
+
+**Key Features:**
+- **Redis Image Storage**: Generated charts are stored in Redis as base64 encoded images
+- **Redis Image Reading**: LLM analysis reads images from Redis with fallback to local files
+- **Redis Caching**: Stock data, indicators, patterns, and sector data are cached in Redis
+- **Automatic Cleanup**: Age-based and size-based cleanup for both images and cache data
+
+#### Install Redis
+
+**macOS:**
+```bash
+brew install redis
+brew services start redis
+```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt update
+sudo apt install redis-server
+sudo systemctl start redis-server
+sudo systemctl enable redis-server
+```
+
+**Docker:**
+```bash
+docker run -d --name redis -p 6379:6379 redis:alpine
+```
+
+#### Test Redis Setup
+```bash
+cd backend
+python test_redis_image_manager.py
+python test_redis_cache_manager.py
+python test_redis_image_reading.py
+python test_chart_generation_redis.py
+```
+
+For detailed Redis configuration, see [REDIS_IMAGE_STORAGE_SETUP.md](backend/REDIS_IMAGE_STORAGE_SETUP.md).
 
 ### Service Startup
 
@@ -212,6 +268,16 @@ npm run dev
 - `POST /ml/predict` - ML predictions
 - `GET /health` - Service health check
 
+#### Chart & Image Management
+- `GET /charts/storage/stats` - Get chart storage statistics (file + Redis)
+- `POST /charts/cleanup` - Cleanup old charts (file + Redis)
+- `DELETE /charts/{symbol}/{interval}` - Cleanup specific charts
+- `GET /redis/images/stats` - Get Redis image storage statistics
+- `POST /redis/images/cleanup` - Cleanup old Redis images
+- `GET /redis/images/{symbol}` - Get Redis images for symbol
+- `DELETE /redis/images/{symbol}` - Cleanup Redis images for symbol
+- `DELETE /redis/images` - Clear all Redis images
+
 ### Example API Requests
 
 #### Basic Stock Analysis
@@ -249,6 +315,42 @@ curl -X POST "http://localhost:8001/analyze/mtf" \
     "exchange": "NSE",
     "timeframes": ["1min", "5min", "15min", "1hour", "day"]
   }'
+```
+
+#### Redis Image Management
+```bash
+# Get Redis image storage statistics
+curl "http://localhost:8001/redis/images/stats"
+
+# Cleanup old Redis images
+curl -X POST "http://localhost:8001/redis/images/cleanup"
+
+# Get images for a specific symbol
+curl "http://localhost:8001/redis/images/RELIANCE"
+
+# Cleanup images for a specific symbol
+curl -X DELETE "http://localhost:8001/redis/images/RELIANCE"
+
+# Get combined storage statistics (file + Redis)
+curl "http://localhost:8001/charts/storage/stats"
+```
+
+#### Redis Cache Management
+```bash
+# Get Redis cache statistics
+curl "http://localhost:8001/redis/cache/stats"
+
+# Clear all cache entries
+curl -X POST "http://localhost:8001/redis/cache/clear"
+
+# Clear specific data type cache
+curl -X POST "http://localhost:8001/redis/cache/clear?data_type=stock_data"
+
+# Clear cache for a specific stock
+curl -X DELETE "http://localhost:8001/redis/cache/stock/RELIANCE"
+
+# Get cached stock data
+curl "http://localhost:8001/redis/cache/stock/RELIANCE"
 ```
 
 ### WebSocket Streaming
