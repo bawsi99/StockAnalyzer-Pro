@@ -110,7 +110,7 @@ frontend/
 ### Prerequisites
 - **Python 3.12+** with pip
 - **Node.js 18+** with npm
-- **Redis** (for image storage and caching)
+- **Redis** (for data caching only)
 - **Zerodha KiteConnect API** credentials
 - **Google Gemini API** key
 - **Supabase** account (for authentication and database)
@@ -146,14 +146,8 @@ frontend/
    SUPABASE_URL=your_supabase_url
    SUPABASE_ANON_KEY=your_supabase_anon_key
    
-   # Redis Configuration (for image storage and caching)
+   # Redis Configuration (for data caching only)
 REDIS_URL=redis://localhost:6379/0
-REDIS_IMAGE_MAX_AGE_HOURS=24
-REDIS_IMAGE_MAX_SIZE_MB=1000
-REDIS_IMAGE_CLEANUP_INTERVAL_MINUTES=60
-REDIS_IMAGE_ENABLE_CLEANUP=true
-REDIS_IMAGE_QUALITY=85
-REDIS_IMAGE_FORMAT=PNG
 
 # Redis Cache Manager Settings
 REDIS_CACHE_ENABLE_COMPRESSION=true
@@ -164,11 +158,11 @@ REDIS_CACHE_CLEANUP_INTERVAL_MINUTES=60
 
 ### Redis Setup
 
-The system uses Redis for storing generated chart images and caching data. This provides better scalability and automatic cleanup compared to local file storage.
+The system uses Redis for caching stock data and analysis results. Charts are now generated in-memory on-demand, providing better performance and eliminating storage overhead.
 
 **Key Features:**
-- **Redis Image Storage**: Generated charts are stored in Redis as base64 encoded images
-- **Redis Image Reading**: LLM analysis reads images from Redis with fallback to local files
+- **In-Memory Chart Generation**: Charts are generated on-demand in memory
+- **Base64 Response**: Charts are immediately converted to base64 for frontend display
 - **Redis Caching**: Stock data, indicators, patterns, and sector data are cached in Redis
 - **Automatic Cleanup**: Age-based and size-based cleanup for both images and cache data
 
@@ -196,13 +190,11 @@ docker run -d --name redis -p 6379:6379 redis:alpine
 #### Test Redis Setup
 ```bash
 cd backend
-python test_redis_image_manager.py
 python test_redis_cache_manager.py
-python test_redis_image_reading.py
 python test_chart_generation_redis.py
 ```
 
-For detailed Redis configuration, see [REDIS_IMAGE_STORAGE_SETUP.md](backend/REDIS_IMAGE_STORAGE_SETUP.md).
+Redis image storage has been removed - charts are now generated in-memory.
 
 ### Service Startup
 
@@ -269,14 +261,10 @@ npm run dev
 - `GET /health` - Service health check
 
 #### Chart & Image Management
-- `GET /charts/storage/stats` - Get chart storage statistics (file + Redis)
-- `POST /charts/cleanup` - Cleanup old charts (file + Redis)
+- `GET /charts/storage/stats` - Get chart storage statistics (file-based only)
+- `POST /charts/cleanup` - Cleanup old charts (file-based only)
 - `DELETE /charts/{symbol}/{interval}` - Cleanup specific charts
-- `GET /redis/images/stats` - Get Redis image storage statistics
-- `POST /redis/images/cleanup` - Cleanup old Redis images
-- `GET /redis/images/{symbol}` - Get Redis images for symbol
-- `DELETE /redis/images/{symbol}` - Cleanup Redis images for symbol
-- `DELETE /redis/images` - Clear all Redis images
+- Charts are now generated in-memory on-demand
 
 ### Example API Requests
 
@@ -318,22 +306,7 @@ curl -X POST "http://localhost:8001/analyze/mtf" \
 ```
 
 #### Redis Image Management
-```bash
-# Get Redis image storage statistics
-curl "http://localhost:8001/redis/images/stats"
-
-# Cleanup old Redis images
-curl -X POST "http://localhost:8001/redis/images/cleanup"
-
-# Get images for a specific symbol
-curl "http://localhost:8001/redis/images/RELIANCE"
-
-# Cleanup images for a specific symbol
-curl -X DELETE "http://localhost:8001/redis/images/RELIANCE"
-
-# Get combined storage statistics (file + Redis)
-curl "http://localhost:8001/charts/storage/stats"
-```
+Redis image storage has been removed - charts are now generated in-memory on-demand.
 
 #### Redis Cache Management
 ```bash
