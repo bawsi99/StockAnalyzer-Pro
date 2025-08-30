@@ -191,60 +191,140 @@ class StockAnalysisOrchestrator:
         return indicators
     
     def create_visualizations(self, data: pd.DataFrame, indicators: Dict[str, Any], 
-                             symbol: str, output_dir: str) -> Dict[str, Any]:
+                             symbol: str, output_dir: str = None, interval: str = "day") -> Dict[str, Any]:
         """
-        Create optimized visualization charts for AI analysis.
-        Reduced from 8 charts to 4 comprehensive charts to eliminate redundancy.
+        Create optimized visualization charts for AI analysis and return them as image bytes.
+        No storage needed - charts are generated in memory and returned directly.
         
         Args:
             data: DataFrame containing price data
             indicators: Dictionary containing calculated indicators
             symbol: Stock symbol
-            output_dir: Directory to save chart images
+            output_dir: Directory to save chart images (deprecated, kept for backward compatibility)
+            interval: Time interval for the data (default: "day")
         Returns:
-            Dict[str, Any]: Dictionary containing chart data and metadata
+            Dict[str, Any]: Dictionary containing chart image bytes and metadata
         """
-        import os
-        logger.info(f"Creating optimized visualization charts for {symbol}")
+        import io
+        import matplotlib.pyplot as plt
+        
+        logger.info(f"Creating in-memory visualization charts for {symbol}")
         charts = {}
         
         try:
-            # 1. COMPREHENSIVE TECHNICAL OVERVIEW CHART
-            # Combines: comparison_chart + support/resistance levels
-            technical_chart_path = os.path.join(output_dir, f"{symbol}_technical_overview.png")
-            ChartVisualizer.plot_comprehensive_technical_chart(data, indicators, technical_chart_path, stock_symbol=symbol)
-            charts['technical_overview'] = technical_chart_path
+            # 1. COMPREHENSIVE TECHNICAL OVERVIEW CHART - Generate in memory
+            from patterns.visualization import ChartVisualizer
+            
+            fig1 = ChartVisualizer.plot_comprehensive_technical_chart(data, indicators, None, symbol)
+            
+            # Convert figure to image bytes
+            buf = io.BytesIO()
+            fig1.savefig(buf, format='png', dpi=300, bbox_inches='tight')
+            buf.seek(0)
+            img_bytes = buf.getvalue()
+            
+            charts['technical_overview'] = {
+                'type': 'image_bytes',
+                'data': img_bytes,
+                'format': 'png',
+                'size_bytes': len(img_bytes),
+                'chart_type': 'technical_overview',
+                'symbol': symbol,
+                'interval': interval
+            }
+            
+            logger.info(f"✅ Generated technical_overview chart: {len(img_bytes)} bytes")
+            plt.close(fig1)
+            
         except Exception as e:
-            logger.warning(f"Failed to create technical overview chart for {symbol}: {e}")
+            logger.error(f"Failed to create technical overview chart for {symbol}: {e}")
+            raise
         
         try:
-            # 2. COMPREHENSIVE PATTERN ANALYSIS CHART
-            # Combines: divergence + double_tops_bottoms + triangles_flags
-            pattern_chart_path = os.path.join(output_dir, f"{symbol}_pattern_analysis.png")
-            ChartVisualizer.plot_comprehensive_pattern_chart(data, indicators, pattern_chart_path, stock_symbol=symbol)
-            charts['pattern_analysis'] = pattern_chart_path
+            # 2. COMPREHENSIVE PATTERN ANALYSIS CHART - Generate in memory
+            fig2 = ChartVisualizer.plot_comprehensive_pattern_chart(data, indicators, None, symbol)
+            
+            # Convert figure to image bytes
+            buf = io.BytesIO()
+            fig2.savefig(buf, format='png', dpi=300, bbox_inches='tight')
+            buf.seek(0)
+            img_bytes = buf.getvalue()
+            
+            charts['pattern_analysis'] = {
+                'type': 'image_bytes',
+                'data': img_bytes,
+                'format': 'png',
+                'size_bytes': len(img_bytes),
+                'chart_type': 'pattern_analysis',
+                'symbol': symbol,
+                'interval': interval
+            }
+            
+            logger.info(f"✅ Generated pattern_analysis chart: {len(img_bytes)} bytes")
+            plt.close(fig2)
+            
         except Exception as e:
-            logger.warning(f"Failed to create pattern analysis chart for {symbol}: {e}")
+            logger.error(f"Failed to create pattern analysis chart for {symbol}: {e}")
+            raise
         
         try:
-            # 3. COMPREHENSIVE VOLUME ANALYSIS CHART
-            # Combines: volume_anomalies + price_volume_correlation + candlestick_volume
-            volume_chart_path = os.path.join(output_dir, f"{symbol}_volume_analysis.png")
-            ChartVisualizer.plot_comprehensive_volume_chart(data, indicators, volume_chart_path, stock_symbol=symbol)
-            charts['volume_analysis'] = volume_chart_path
+            # 3. COMPREHENSIVE VOLUME ANALYSIS CHART - Generate in memory
+            fig3 = ChartVisualizer.plot_comprehensive_volume_chart(data, indicators, None, symbol)
+            
+            # Convert figure to image bytes
+            buf = io.BytesIO()
+            fig3.savefig(buf, format='png', dpi=300, bbox_inches='tight')
+            buf.seek(0)
+            img_bytes = buf.getvalue()
+            
+            charts['volume_analysis'] = {
+                'type': 'image_bytes',
+                'data': img_bytes,
+                'format': 'png',
+                'size_bytes': len(img_bytes),
+                'chart_type': 'volume_analysis',
+                'symbol': symbol,
+                'interval': interval
+            }
+            
+            logger.info(f"✅ Generated volume_analysis chart: {len(img_bytes)} bytes")
+            plt.close(fig3)
+            
         except Exception as e:
-            logger.warning(f"Failed to create volume analysis chart for {symbol}: {e}")
+            logger.error(f"Failed to create volume analysis chart for {symbol}: {e}")
+            raise
         
         try:
-            # 4. MULTI-TIMEFRAME COMPARISON CHART
-            # New chart for multi-timeframe analysis
-            mtf_chart_path = os.path.join(output_dir, f"{symbol}_mtf_comparison.png")
-            ChartVisualizer.plot_mtf_comparison_chart(data, indicators, mtf_chart_path, stock_symbol=symbol)
-            charts['mtf_comparison'] = mtf_chart_path
+            # 4. MULTI-TIMEFRAME COMPARISON CHART - Generate in memory
+            fig4 = ChartVisualizer.plot_mtf_comparison_chart(data, indicators, None, symbol)
+            
+            # Convert figure to image bytes
+            buf = io.BytesIO()
+            fig4.savefig(buf, format='png', dpi=300, bbox_inches='tight')
+            buf.seek(0)
+            img_bytes = buf.getvalue()
+            
+            charts['mtf_comparison'] = {
+                'type': 'image_bytes',
+                'data': img_bytes,
+                'format': 'png',
+                'size_bytes': len(img_bytes),
+                'chart_type': 'mtf_comparison',
+                'symbol': symbol,
+                'interval': interval
+            }
+            
+            logger.info(f"✅ Generated mtf_comparison chart: {len(img_bytes)} bytes")
+            plt.close(fig4)
+            
         except Exception as e:
-            logger.warning(f"Failed to create MTF comparison chart for {symbol}: {e}")
+            logger.error(f"Failed to create multi-timeframe comparison chart for {symbol}: {e}")
+            raise
         
-        logger.info(f"Created {len(charts)} optimized charts for {symbol}")
+        # Calculate total memory usage
+        total_size = sum(chart['size_bytes'] for chart in charts.values())
+        logger.info(f"Created {len(charts)} in-memory charts for {symbol}: {total_size:,} bytes ({total_size/1024:.1f} KB)")
+        
         return charts
     
     def serialize_indicators(self, indicators: Dict[str, Any]) -> Dict[str, Any]:
@@ -915,7 +995,7 @@ IMPORTANT: Consider this multi-timeframe context when analyzing the stock. Pay s
             
             # Step 3: Create visualizations
             logger.info(f"[ENHANCED ANALYSIS] Creating visualizations for {symbol}")
-            chart_paths = self.create_visualizations(data, indicators, symbol, output_dir or "output")
+            chart_paths = self.create_visualizations(data, indicators, symbol, output_dir or "output", interval)
             
             # Step 4: Get sector context if available
             sector_context = None
@@ -1506,7 +1586,7 @@ if __name__ == "__main__":
             # Create visualizations for AI analysis
             chart_paths = {}
             if output_dir:
-                chart_paths = self.create_visualizations(stock_data, state.indicators, symbol, output_dir)
+                chart_paths = self.create_visualizations(stock_data, state.indicators, symbol, output_dir, interval)
             
             # Get sector context if available
             sector_benchmarking = None
