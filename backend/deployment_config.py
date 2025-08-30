@@ -42,6 +42,51 @@ class DeploymentConfig:
         }
     }
     
+    # Redis image manager configurations removed - charts are now generated in-memory
+    
+    # Redis cache manager configurations for different environments
+    REDIS_CACHE_CONFIGS = {
+        "development": {
+            "enable_compression": True,
+            "cleanup_interval_minutes": 60,
+            "redis_url": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+            "ttl_settings": {
+                "stock_data": 300,      # 5 minutes
+                "indicators": 600,      # 10 minutes
+                "patterns": 1800,       # 30 minutes
+                "sector_data": 3600,    # 1 hour
+                "ml_predictions": 1800, # 30 minutes
+                "api_responses": 300    # 5 minutes
+            }
+        },
+        "staging": {
+            "enable_compression": True,
+            "cleanup_interval_minutes": 30,
+            "redis_url": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+            "ttl_settings": {
+                "stock_data": 300,      # 5 minutes
+                "indicators": 600,      # 10 minutes
+                "patterns": 1800,       # 30 minutes
+                "sector_data": 3600,    # 1 hour
+                "ml_predictions": 1800, # 5 minutes
+                "api_responses": 300    # 5 minutes
+            }
+        },
+        "production": {
+            "enable_compression": True,
+            "cleanup_interval_minutes": 15,
+            "redis_url": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+            "ttl_settings": {
+                "stock_data": 180,      # 3 minutes
+                "indicators": 300,      # 5 minutes
+                "patterns": 900,        # 15 minutes
+                "sector_data": 1800,    # 30 minutes
+                "ml_predictions": 900,  # 15 minutes
+                "api_responses": 180    # 3 minutes
+            }
+        }
+    }
+    
     @classmethod
     def get_chart_config(cls) -> Dict[str, Any]:
         """Get chart configuration for current environment."""
@@ -60,17 +105,50 @@ class DeploymentConfig:
         return config
     
     @classmethod
+    def get_redis_image_config(cls) -> Dict[str, Any]:
+        """
+        Redis image manager configuration (deprecated).
+        
+        This method is kept for backward compatibility but returns a message
+        indicating that Redis image storage has been removed.
+        """
+        return {
+            "status": "removed",
+            "message": "Redis image storage has been removed - charts are now generated in-memory"
+        }
+    
+    @classmethod
+    def get_redis_cache_config(cls) -> Dict[str, Any]:
+        """Get Redis cache manager configuration for current environment."""
+        environment = cls.get_environment()
+        config = cls.REDIS_CACHE_CONFIGS.get(environment, cls.REDIS_CACHE_CONFIGS["development"]).copy()
+        
+        # Override with environment variables if present
+        config.update({
+            "enable_compression": os.getenv("REDIS_CACHE_ENABLE_COMPRESSION", "true").lower() == "true",
+            "cleanup_interval_minutes": int(os.getenv("REDIS_CACHE_CLEANUP_INTERVAL_MINUTES", config["cleanup_interval_minutes"])),
+            "redis_url": os.getenv("REDIS_URL", config["redis_url"])
+        })
+        
+        return config
+    
+    @classmethod
     def get_environment_info(cls) -> Dict[str, Any]:
         """Get current environment information."""
         return {
             "environment": cls.get_environment(),
             "chart_config": cls.get_chart_config(),
+            "redis_image_config": {"status": "removed", "message": "Charts are now generated in-memory"},
+            "redis_cache_config": cls.get_redis_cache_config(),
             "environment_variables": {
                 "CHART_MAX_AGE_HOURS": os.getenv("CHART_MAX_AGE_HOURS"),
                 "CHART_MAX_SIZE_MB": os.getenv("CHART_MAX_SIZE_MB"),
                 "CHART_CLEANUP_INTERVAL_MINUTES": os.getenv("CHART_CLEANUP_INTERVAL_MINUTES"),
                 "CHART_OUTPUT_DIR": os.getenv("CHART_OUTPUT_DIR"),
-                "CHART_ENABLE_CLEANUP": os.getenv("CHART_ENABLE_CLEANUP")
+                "CHART_ENABLE_CLEANUP": os.getenv("CHART_ENABLE_CLEANUP"),
+                "REDIS_CACHE_ENABLE_COMPRESSION": os.getenv("REDIS_CACHE_ENABLE_COMPRESSION"),
+                "REDIS_CACHE_CLEANUP_INTERVAL_MINUTES": os.getenv("REDIS_CACHE_CLEANUP_INTERVAL_MINUTES"),
+                "REDIS_URL": os.getenv("REDIS_URL")
             }
         }
 
@@ -81,7 +159,9 @@ DEPLOYMENT_RECOMMENDATIONS = {
         "recommendations": [
             "Use default settings for development",
             "Charts can be kept longer for debugging",
-            "Larger storage limits for testing"
+            "Larger storage limits for testing",
+            "Use local Redis instance",
+            "PNG format for best quality during development"
         ]
     },
     "staging": {
@@ -89,7 +169,9 @@ DEPLOYMENT_RECOMMENDATIONS = {
         "recommendations": [
             "Moderate cleanup frequency",
             "Medium storage limits",
-            "Good balance between performance and debugging"
+            "Good balance between performance and debugging",
+            "Use local or cloud Redis instance",
+            "PNG format for quality testing"
         ]
     },
     "production": {
@@ -98,7 +180,10 @@ DEPLOYMENT_RECOMMENDATIONS = {
             "Aggressive cleanup (6 hours max age)",
             "Small storage limits (200MB)",
             "Frequent cleanup (15 minutes)",
-            "Monitor storage usage closely"
+            "Monitor storage usage closely",
+            "Use cloud Redis instance for scalability",
+            "JPEG format for smaller file sizes",
+            "Lower image quality (80) for better performance"
         ]
     }
 }
@@ -109,5 +194,6 @@ def get_deployment_recommendations() -> Dict[str, Any]:
     return {
         "current_environment": env,
         "recommendations": DEPLOYMENT_RECOMMENDATIONS.get(env, DEPLOYMENT_RECOMMENDATIONS["development"]),
-        "config": DeploymentConfig.get_chart_config()
+        "chart_config": DeploymentConfig.get_chart_config(),
+        "charts_status": "Charts are now generated in-memory - no Redis image storage needed"
     } 

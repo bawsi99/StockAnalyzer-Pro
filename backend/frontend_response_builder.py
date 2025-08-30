@@ -70,6 +70,7 @@ class FrontendResponseBuilder:
                         indicators=indicators,
                         interval=interval,
                         mtf_context=mtf_context,
+                        data=data,
                     ),
                     "sector_context": sector_context or {},
                     "multi_timeframe_analysis": mtf_context or {},
@@ -82,7 +83,7 @@ class FrontendResponseBuilder:
                         "stress_testing_metrics": advanced_analysis.get("stress_testing", {}),
                         "scenario_analysis_metrics": advanced_analysis.get("scenario_analysis", {})
                     },
-                    "charts": chart_paths,
+                    "charts": {}, # Empty charts - frontend uses dedicated /charts endpoint
                     # Unified ML predictions surfaced for frontend (if available)
                     "ml_predictions": ml_predictions or {},
                     "overlays": FrontendResponseBuilder._build_overlays(
@@ -157,7 +158,7 @@ class FrontendResponseBuilder:
             }
 
     @staticmethod
-    def _extract_signals(ai_analysis: dict, indicators: dict, interval: str = "day", mtf_context: dict | None = None) -> dict:
+    def _extract_signals(ai_analysis: dict, indicators: dict, interval: str = "day", mtf_context: dict | None = None, data: pd.DataFrame = None) -> dict:
         """Extract or compute deterministic signals for the frontend.
 
         Priority:
@@ -279,7 +280,12 @@ class FrontendResponseBuilder:
                 normalized_interval = interval or 'day'
                 per_timeframe_indicators[normalized_interval] = indicators or {}
 
-            summary = compute_signals_summary(per_timeframe_indicators)
+            # Try to get price data for better regime detection
+            price_data = None
+            if data is not None and not data.empty and len(data) >= 20:
+                price_data = data
+            
+            summary = compute_signals_summary(per_timeframe_indicators, price_data)
 
             # Build output, allowing overrides from mtf_context where available (e.g., confidence)
             result = {
@@ -1217,7 +1223,12 @@ class FrontendResponseBuilder:
                 flattened_indicators = FrontendResponseBuilder._flatten_indicators_for_scoring(indicators)
                 per_timeframe_indicators['day'] = flattened_indicators
 
-            summary = compute_signals_summary(per_timeframe_indicators)
+            # Try to get price data for better regime detection
+            price_data = None
+            if data is not None and not data.empty and len(data) >= 50:
+                price_data = data
+            
+            summary = compute_signals_summary(per_timeframe_indicators, price_data)
 
             c = float(summary.consensus_score)
             bullish_percentage = max(0.0, c) * 100.0

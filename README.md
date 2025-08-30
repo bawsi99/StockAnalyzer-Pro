@@ -110,7 +110,7 @@ frontend/
 ### Prerequisites
 - **Python 3.12+** with pip
 - **Node.js 18+** with npm
-- **Redis** (optional, for enhanced caching)
+- **Redis** (for data caching only)
 - **Zerodha KiteConnect API** credentials
 - **Google Gemini API** key
 - **Supabase** account (for authentication and database)
@@ -145,8 +145,56 @@ frontend/
    GEMINI_API_KEY=your_gemini_api_key
    SUPABASE_URL=your_supabase_url
    SUPABASE_ANON_KEY=your_supabase_anon_key
-   REDIS_URL=redis://localhost:6379  # Optional
+   
+   # Redis Configuration (for data caching only)
+REDIS_URL=redis://localhost:6379/0
+
+# Redis Cache Manager Settings
+REDIS_CACHE_ENABLE_COMPRESSION=true
+REDIS_CACHE_ENABLE_LOCAL_FALLBACK=true
+REDIS_CACHE_LOCAL_SIZE=1000
+REDIS_CACHE_CLEANUP_INTERVAL_MINUTES=60
    ```
+
+### Redis Setup
+
+The system uses Redis for caching stock data and analysis results. Charts are now generated in-memory on-demand, providing better performance and eliminating storage overhead.
+
+**Key Features:**
+- **In-Memory Chart Generation**: Charts are generated on-demand in memory
+- **Base64 Response**: Charts are immediately converted to base64 for frontend display
+- **Redis Caching**: Stock data, indicators, patterns, and sector data are cached in Redis
+- **Automatic Cleanup**: Age-based and size-based cleanup for both images and cache data
+
+#### Install Redis
+
+**macOS:**
+```bash
+brew install redis
+brew services start redis
+```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt update
+sudo apt install redis-server
+sudo systemctl start redis-server
+sudo systemctl enable redis-server
+```
+
+**Docker:**
+```bash
+docker run -d --name redis -p 6379:6379 redis:alpine
+```
+
+#### Test Redis Setup
+```bash
+cd backend
+python test_redis_cache_manager.py
+python test_chart_generation_redis.py
+```
+
+Redis image storage has been removed - charts are now generated in-memory.
 
 ### Service Startup
 
@@ -212,6 +260,12 @@ npm run dev
 - `POST /ml/predict` - ML predictions
 - `GET /health` - Service health check
 
+#### Chart & Image Management
+- `GET /charts/storage/stats` - Get chart storage statistics (file-based only)
+- `POST /charts/cleanup` - Cleanup old charts (file-based only)
+- `DELETE /charts/{symbol}/{interval}` - Cleanup specific charts
+- Charts are now generated in-memory on-demand
+
 ### Example API Requests
 
 #### Basic Stock Analysis
@@ -249,6 +303,27 @@ curl -X POST "http://localhost:8001/analyze/mtf" \
     "exchange": "NSE",
     "timeframes": ["1min", "5min", "15min", "1hour", "day"]
   }'
+```
+
+#### Redis Image Management
+Redis image storage has been removed - charts are now generated in-memory on-demand.
+
+#### Redis Cache Management
+```bash
+# Get Redis cache statistics
+curl "http://localhost:8001/redis/cache/stats"
+
+# Clear all cache entries
+curl -X POST "http://localhost:8001/redis/cache/clear"
+
+# Clear specific data type cache
+curl -X POST "http://localhost:8001/redis/cache/clear?data_type=stock_data"
+
+# Clear cache for a specific stock
+curl -X DELETE "http://localhost:8001/redis/cache/stock/RELIANCE"
+
+# Get cached stock data
+curl "http://localhost:8001/redis/cache/stock/RELIANCE"
 ```
 
 ### WebSocket Streaming

@@ -50,7 +50,7 @@ from sector_classifier import sector_classifier
 from enhanced_sector_classifier import enhanced_sector_classifier
 from patterns.recognition import PatternRecognition
 from technical_indicators import TechnicalIndicators
-from simple_database_manager import simple_db_manager
+from database_manager import DatabaseManager
 from frontend_response_builder import FrontendResponseBuilder
 from chart_manager import get_chart_manager, initialize_chart_manager
 from deployment_config import DeploymentConfig
@@ -59,8 +59,11 @@ from storage_config import StorageConfig
 app = FastAPI(title="Stock Analysis Service", version="1.0.0")
 logger = logging.getLogger(__name__)
 
+# Initialize database manager
+simple_db_manager = DatabaseManager()
+
 # Load CORS origins from environment variable
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080").split(",")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:8080,http://127.0.0.1:5173,https://stock-analyzer-pro.vercel.app,https://stock-analyzer-pro-git-prototype-aaryan-manawats-projects.vercel.app,https://stock-analyzer-cl9o3tivx-aaryan-manawats-projects.vercel.app,https://stockanalyzer-pro.vercel.app").split(",")
 CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGINS if origin.strip()]
 
 # --- ML endpoints for CatBoost training and prediction ---
@@ -162,6 +165,22 @@ async def startup_event():
         chart_manager = initialize_chart_manager(**chart_config)
         print(f"✅ Chart manager initialized: max_age={chart_manager.max_age_hours}h, max_size={chart_manager.max_total_size_mb}MB")
         
+        # Redis image manager removed - charts are now generated in-memory
+        # Note: Redis is still used for data caching, just not for image storage
+        print("📊 Charts are generated in-memory - Redis not used for image storage")
+        print("ℹ️  Using file-based chart storage and Redis for data caching")
+        
+        # Initialize Redis cache manager (still needed for data caching, just not image storage)
+        print("💾 Initializing Redis cache manager...")
+        try:
+            redis_cache_config = DeploymentConfig.get_redis_cache_config()
+            from redis_cache_manager import initialize_redis_cache_manager
+            redis_cache_manager = initialize_redis_cache_manager(**redis_cache_config)
+            print(f"✅ Redis cache manager initialized: compression={redis_cache_manager.enable_compression}")
+        except Exception as cache_e:
+            print(f"⚠️  Warning: Could not initialize Redis cache manager: {cache_e}")
+            print("ℹ️  Falling back to local caching")
+        
         # Initialize storage configuration
         print("📁 Initializing storage configuration...")
         StorageConfig.ensure_directories_exist()
@@ -196,40 +215,48 @@ async def startup_event():
     else:
         print("ℹ️  Scheduled calibration disabled (set ENABLE_SCHEDULED_CALIBRATION=1 to enable)")
 
-    # Start background weekly scheduler
+    # Start background weekly scheduler only if enabled
     async def _weekly_scheduler():
         try:
             await asyncio.sleep(5)
             week_seconds = 7 * 24 * 60 * 60
             while True:
                 try:
-                    if os.environ.get("ENABLE_SCHEDULED_CALIBRATION") == "1":
-                        result = scheduled_calibration_task()
-                        if asyncio.iscoroutine(result):
-                            await result
-                    else:
-                        print("ℹ️  Scheduled calibration disabled (set ENABLE_SCHEDULED_CALIBRATION=1 to enable)")
+                    # No need to check again since we only start this task when enabled
+                    result = scheduled_calibration_task()
+                    if asyncio.iscoroutine(result):
+                        await result
                 except Exception as inner_e:
                     print("[CALIBRATION] Background weekly scheduler error:", inner_e)
                 await asyncio.sleep(week_seconds)
         except asyncio.CancelledError:
             return
 
-    try:
-        loop = asyncio.get_running_loop()
-        loop.create_task(_weekly_scheduler())
-        print("🔁 Background weekly calibration scheduler started")
-    except Exception as e:
-        print("⚠️  Warning: Failed to start background weekly scheduler:", e)
+    # Only create the scheduler task if calibration is enabled
+    if os.environ.get("ENABLE_SCHEDULED_CALIBRATION") == "1":
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_weekly_scheduler())
+            print("🔁 Background weekly calibration scheduler started")
+        except Exception as e:
+            print("⚠️  Warning: Failed to start background weekly scheduler:", e)
+    else:
+        print("ℹ️  Scheduled calibration disabled - no background task created")
 
 
 def scheduled_calibration_task() -> None:
     """Weekly calibration job: generate fixtures, calibrate, and backup weights."""
     import subprocess
+    import glob
+    import time
+    
     try:
         # Avoid any work if not explicitly enabled
         if os.environ.get("ENABLE_SCHEDULED_CALIBRATION") != "1":
             return
+            
+        print("[CALIBRATION] Starting scheduled calibration task")
+        
         symbols = os.environ.get(
             "CALIB_SYMBOLS",
             "NIFTY_50,NIFTY_BANK,NIFTY_IT,NIFTY_PHARMA,NIFTY_AUTO,"
@@ -237,12 +264,28 @@ def scheduled_calibration_task() -> None:
             "NIFTY_CONSUMER_DURABLES,NIFTY_HEALTHCARE,NIFTY_INFRA,NIFTY_OIL_GAS,"
             "NIFTY_SERV_SECTOR"
         )
+        
         # Write outside the watched tree to avoid reload loops
         fixtures_out = os.environ.get(
             "CALIB_FIXTURES_DIR",
             os.path.join(os.path.expanduser('~'), '.traderpro', 'fixtures', 'auto')
         )
         os.makedirs(fixtures_out, exist_ok=True)
+        
+        # Clean up any old temporary files before starting
+        try:
+            old_temp_files = glob.glob(os.path.join(fixtures_out, "*.tmp"))
+            for temp_file in old_temp_files:
+                try:
+                    os.remove(temp_file)
+                    print(f"[CALIBRATION] Removed old temp file: {os.path.basename(temp_file)}")
+                except Exception:
+                    pass
+        except Exception:
+            pass
+            
+        # Generate fixtures with timeout and memory management
+        print("[CALIBRATION] Generating fixtures...")
         gen_cmd = [
             'python', os.path.join(os.path.dirname(__file__), 'scripts', 'generate_fixtures.py'),
             '--symbols', symbols,
@@ -254,19 +297,47 @@ def scheduled_calibration_task() -> None:
             '--stride', '10',
             '--out', fixtures_out
         ]
-        subprocess.run(gen_cmd, check=False)
+        
+        try:
+            # Run with timeout to prevent hanging processes
+            process = subprocess.run(gen_cmd, check=False, timeout=600)  # 10 minute timeout
+            print(f"[CALIBRATION] Fixtures generation completed with return code: {process.returncode}")
+        except subprocess.TimeoutExpired:
+            print("[CALIBRATION] ⚠️ Fixtures generation timed out after 10 minutes")
+        
+        # Clear memory before next subprocess
+        time.sleep(1)  # Brief pause to allow OS to reclaim resources
+        
+        # Run calibration with timeout
+        print("[CALIBRATION] Running calibration...")
         calib_cmd = [
             'python', os.path.join(os.path.dirname(__file__), 'scripts', 'calibrate_all.py'),
             fixtures_out,
             '--weights', os.path.join(os.path.dirname(__file__), 'signals', 'weights_config.json'),
             '--backup_dir', os.path.join(os.path.dirname(__file__), 'signals', 'weights_history')
         ]
-        subprocess.run(calib_cmd, check=False)
+        
+        try:
+            # Run with timeout to prevent hanging processes
+            process = subprocess.run(calib_cmd, check=False, timeout=600)  # 10 minute timeout
+            print(f"[CALIBRATION] Calibration completed with return code: {process.returncode}")
+        except subprocess.TimeoutExpired:
+            print("[CALIBRATION] ⚠️ Calibration timed out after 10 minutes")
+        
+        # Clean up any temporary files after calibration
+        try:
+            temp_files = glob.glob(os.path.join(fixtures_out, "*.tmp"))
+            for temp_file in temp_files:
+                try:
+                    os.remove(temp_file)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+            
         print("✅ Scheduled calibration run completed")
     except Exception as e:
         print('[CALIBRATION] Scheduled calibration failed:', e)
-    except Exception as e:
-        print(f"⚠️  Warning: Could not initialize sector classifiers: {e}")
     
 
 @app.on_event("shutdown")
@@ -328,53 +399,152 @@ def make_json_serializable(obj):
         return str(obj)
 
 def convert_charts_to_base64(charts_dict: dict) -> dict:
-    """Convert chart file paths to base64 encoded images."""
+    """Convert chart file paths to base64 encoded images with improved memory management."""
     import base64
+    import gc
     converted_charts = {}
     
+    # Process charts one by one to minimize memory usage
     for chart_name, chart_path in charts_dict.items():
+        # Handle file paths (charts are now generated in-memory)
         if isinstance(chart_path, str) and os.path.exists(chart_path):
             try:
-                with open(chart_path, 'rb') as f:
-                    img_data = f.read()
-                    img_base64 = base64.b64encode(img_data).decode('utf-8')
-                    converted_charts[chart_name] = {
-                        'data': f"data:image/png;base64,{img_base64}",
-                        'filename': os.path.basename(chart_path),
-                        'type': 'image/png'
-                    }
+                # Use a separate function to scope the memory usage
+                def process_file_chart():
+                    with open(chart_path, 'rb') as f:
+                        img_data = f.read()
+                        img_base64 = base64.b64encode(img_data).decode('utf-8')
+                        return {
+                            'data': f"data:image/png;base64,{img_base64}",
+                            'filename': os.path.basename(chart_path),
+                            'type': 'image/png'
+                        }
+                
+                # Process the chart and immediately assign the result
+                converted_charts[chart_name] = process_file_chart()
+                
+                # Explicitly suggest garbage collection
+                gc.collect()
+                
             except Exception as e:
                 print(f"Error converting chart {chart_name}: {e}")
                 converted_charts[chart_name] = {
                     'error': f"Failed to load chart: {str(e)}",
                     'filename': os.path.basename(chart_path) if isinstance(chart_path, str) else 'unknown'
                 }
+                
+        elif isinstance(chart_path, dict) and chart_path.get('type') == 'image_bytes' and 'data' in chart_path:
+            try:
+                # Use a separate function to scope the memory usage
+                def process_memory_chart():
+                    img_data = chart_path['data']
+                    img_base64 = base64.b64encode(img_data).decode('utf-8')
+                    return {
+                        'data': f"data:image/png;base64,{img_base64}",
+                        'format': chart_path.get('format', 'png'),
+                        'type': 'image/png'
+                    }
+                
+                # Process the chart and immediately assign the result
+                converted_charts[chart_name] = process_memory_chart()
+                
+                # Explicitly suggest garbage collection
+                gc.collect()
+                
+            except Exception as e:
+                print(f"Error converting in-memory chart {chart_name}: {e}")
+                converted_charts[chart_name] = {
+                    'error': f"Failed to convert in-memory chart: {str(e)}"
+                }
+                
         else:
-            converted_charts[chart_name] = {
-                'error': 'Chart file not found',
-                'path': chart_path
-            }
+            # Handle invalid chart paths
+            if isinstance(chart_path, str):
+                converted_charts[chart_name] = {
+                    'error': 'Chart file not found',
+                    'path': chart_path
+                }
+            else:
+                # Don't print the actual chart_path object which might contain binary data
+                converted_charts[chart_name] = {
+                    'error': 'Invalid chart path format',
+                    'path_type': str(type(chart_path))
+                }
+    
+    # Clear the input dictionary to help with garbage collection
+    if charts_dict:
+        charts_dict.clear()
+        
+    # Final garbage collection
+    gc.collect()
     
     return converted_charts
 
 def cleanup_chart_files(chart_paths: dict) -> dict:
-    """Delete chart image files referenced in chart_paths.
+    """Clean up chart files or Redis keys referenced in chart_paths with improved error handling.
 
     Returns basic stats about cleanup operations performed.
     """
-    stats = {"files_removed": 0, "errors": 0}
-    try:
-        for _, chart_path in (chart_paths or {}).items():
-            try:
-                if isinstance(chart_path, str) and os.path.exists(chart_path):
-                    # Remove only the file; do not remove directories
-                    os.remove(chart_path)
-                    stats["files_removed"] += 1
-            except Exception:
-                stats["errors"] += 1
+    import gc
+    stats = {"files_removed": 0, "redis_keys_cleaned": 0, "errors": 0}
+    
+    # Guard against None input
+    if chart_paths is None:
         return stats
-    except Exception:
+        
+    try:
+        # Make a copy of the keys to avoid modification during iteration
+        chart_keys = list(chart_paths.keys())
+        
+        for chart_name in chart_keys:
+            try:
+                chart_path = chart_paths.get(chart_name)
+                
+                # Skip if the path is None or already removed
+                if chart_path is None:
+                    continue
+                    
+                if isinstance(chart_path, str):
+                    if chart_path.startswith('chart:'):
+                        # Redis is still used for data caching but no longer for image storage
+                        # We'll count these for backward compatibility but no action needed
+                        stats["redis_keys_cleaned"] += 1
+                    elif os.path.exists(chart_path):
+                        # Remove only the file; do not remove directories
+                        os.remove(chart_path)
+                        print(f"✅ Removed chart file: {os.path.basename(chart_path)}")
+                        stats["files_removed"] += 1
+                        
+                # Remove the reference from the dictionary
+                chart_paths[chart_name] = None
+                
+            except Exception as e:
+                print(f"⚠️ Error cleaning up chart {chart_name}: {str(e)}")
+                stats["errors"] += 1
+                # Continue with other charts even if one fails
+                continue
+        
+        # Clear the chart_paths dictionary reference after cleanup
+        chart_paths.clear()
+        
+        # Suggest garbage collection
+        gc.collect()
+            
+        return stats
+    except Exception as e:
+        print(f"⚠️ Error in cleanup_chart_files: {str(e)}")
         stats["errors"] += 1
+        
+        # Try to clear the dictionary even in case of error
+        try:
+            if chart_paths:
+                chart_paths.clear()
+        except:
+            pass
+            
+        # Suggest garbage collection
+        gc.collect()
+        
         return stats
 
 def validate_analysis_results(results: dict) -> dict:
@@ -626,10 +796,9 @@ async def enhanced_analyze(request: EnhancedAnalysisRequest):
                 status_code=500
             )
         
-        # Create visualizations
+        # Skip chart generation - frontend doesn't use these charts
+        # Charts are only needed for AI analysis which is already done in enhanced_analyze_stock
         chart_paths = {}
-        if request.output:
-            chart_paths = orchestrator.create_visualizations(stock_data, indicators, request.stock, request.output)
         
         # Get sector context (auto-detect sector if not provided)
         sector_context = None
@@ -640,6 +809,8 @@ async def enhanced_analyze(request: EnhancedAnalysisRequest):
                 if not request.sector:
                     from sector_classifier import sector_classifier as _sc
                     detected_sector = _sc.get_stock_sector(request.stock)
+                    # Clear module reference when done
+                    del _sc
             except Exception:
                 detected_sector = None
 
@@ -647,6 +818,7 @@ async def enhanced_analyze(request: EnhancedAnalysisRequest):
             from sector_benchmarking import sector_benchmarking_provider
 
             # Launch sector tasks in parallel for reduced latency
+            print(f"🔄 Starting parallel sector analysis tasks for {request.stock}")
             benchmarking_task = sector_benchmarking_provider.get_comprehensive_benchmarking_async(
                 request.stock,
                 stock_data,
@@ -678,8 +850,23 @@ async def enhanced_analyze(request: EnhancedAnalysisRequest):
                 (sector_benchmarking or {}).get('sector_info', {}).get('sector') if isinstance(sector_benchmarking, dict) else None
             ) or ''
 
+            # Create sector context with only necessary data
+            # Extract only the essential information from sector_benchmarking to reduce memory usage
+            essential_benchmarking = {}
+            if isinstance(sector_benchmarking, dict):
+                # Extract only key metrics and summary data
+                if 'sector_info' in sector_benchmarking:
+                    essential_benchmarking['sector_info'] = sector_benchmarking['sector_info']
+                if 'performance_metrics' in sector_benchmarking:
+                    essential_benchmarking['performance_metrics'] = sector_benchmarking['performance_metrics']
+                if 'summary' in sector_benchmarking:
+                    essential_benchmarking['summary'] = sector_benchmarking['summary']
+                
+                # Clear original large data structure
+                sector_benchmarking.clear()
+                
             sector_context = {
-                'sector_benchmarking': sector_benchmarking,
+                'sector_benchmarking': essential_benchmarking,
                 'sector_rotation': sector_rotation,
                 'sector_correlation': sector_correlation,
                 'sector': sector_value
@@ -731,11 +918,32 @@ async def enhanced_analyze(request: EnhancedAnalysisRequest):
             from ml.quant_system.ml.unified_manager import unified_ml_manager
             # Train engines that require stock data (raw_data_ml, hybrid) before prediction
             try:
+                print(f"🧠 Training ML engines for {request.stock}")
                 _ = unified_ml_manager.train_all_engines(stock_data, None)
-            except Exception:
+            except Exception as e:
+                print(f"⚠️ Warning: ML engine training failed: {str(e)}")
                 pass
+                
+            # Get predictions
+            print(f"🔮 Generating ML predictions for {request.stock}")
             ml_predictions = unified_ml_manager.get_comprehensive_prediction(stock_data)
             print(f"✅ ML predictions generated successfully for {request.stock}")
+            
+            # Clear any cached training data if possible
+            try:
+                if hasattr(unified_ml_manager, 'clear_cache') and callable(unified_ml_manager.clear_cache):
+                    unified_ml_manager.clear_cache()
+                    print(f"🧹 Cleared ML training cache for {request.stock}")
+                # If no explicit clear_cache method, try to clean up the most memory-intensive components
+                elif hasattr(unified_ml_manager, '_trained_models') and isinstance(unified_ml_manager._trained_models, dict):
+                    unified_ml_manager._trained_models.clear()
+                    print(f"🧹 Cleared ML model cache for {request.stock}")
+            except Exception as cache_e:
+                print(f"⚠️ Non-fatal error during ML cache cleanup: {str(cache_e)}")
+                
+            # Clear module reference when done
+            del unified_ml_manager
+            
         except Exception as e:
             print(f"Warning: Could not generate ML predictions: {e}")
             ml_predictions = {}
@@ -757,6 +965,14 @@ async def enhanced_analyze(request: EnhancedAnalysisRequest):
             period=request.period,
             interval=request.interval
         )
+        
+        # Clear large data structures that are no longer needed after building response
+        print(f"🧹 Cleaning up memory for {request.stock} analysis...")
+        # These structures have been incorporated into frontend_response and are no longer needed
+        del sector_context
+        del mtf_context
+        del advanced_analysis
+        del ml_predictions
         
         # Resolve user ID from request
         try:
@@ -792,18 +1008,24 @@ async def enhanced_analyze(request: EnhancedAnalysisRequest):
         print(f"[ENHANCED ANALYSIS] Completed enhanced analysis for {request.stock}")
         # Make the response JSON serializable to handle NaN values
         serialized_response = make_json_serializable(frontend_response)
+        
+        # Clear original response after serialization
+        del frontend_response
 
-        # Cleanup generated chart image files after the final response content is prepared
+        # No chart cleanup needed - we're not generating charts anymore
+        import gc
+        
+        # Clear analysis results to free memory
         try:
-            # Cleanup charts created in this endpoint response
-            if 'results' in frontend_response and isinstance(frontend_response['results'].get('charts'), dict):
-                _ = cleanup_chart_files(frontend_response['results']['charts'])
-            # Also cleanup any charts created by the earlier enhanced_analyze_stock result
-            if isinstance(analysis_results, dict) and isinstance(analysis_results.get('charts'), dict):
-                _ = cleanup_chart_files(analysis_results['charts'])
-        except Exception:
-            # Non-fatal: cleanup best-effort
-            pass
+            if 'analysis_results' in locals():
+                if isinstance(analysis_results, dict):
+                    analysis_results.clear()
+                del analysis_results
+        except Exception as e:
+            print(f"⚠️ Non-fatal error clearing analysis results: {str(e)}")
+        
+        # Force garbage collection
+        gc.collect()
 
         return JSONResponse(content=serialized_response, status_code=200)
         
@@ -811,6 +1033,31 @@ async def enhanced_analyze(request: EnhancedAnalysisRequest):
         error_msg = f"Enhanced analysis failed for {request.stock}: {str(e)}"
         print(f"[ENHANCED ANALYSIS ERROR] {error_msg}")
         print(f"[ENHANCED ANALYSIS ERROR] Traceback: {traceback.format_exc()}")
+        
+        # Attempt to clean up any resources that might have been created
+        try:
+            # Clean up any local variables that might be holding large data
+            locals_to_clean = ['stock_data', 'indicators', 'analysis_results', 
+                              'sector_context', 'mtf_context', 'advanced_analysis', 
+                              'ml_predictions', 'frontend_response']
+            
+            for var_name in locals_to_clean:
+                if var_name in locals():
+                    var_value = locals()[var_name]
+                    if isinstance(var_value, dict):
+                        var_value.clear()
+                    elif var_name in locals():
+                        del locals()[var_name]
+            
+            # Clean up any chart files that might have been created
+            chart_manager = get_chart_manager()
+            chart_dir = chart_manager.get_chart_directory(request.stock, request.interval)
+            if os.path.exists(chart_dir):
+                print(f"🧹 Cleaning up chart directory for {request.stock}")
+                chart_manager.cleanup_specific_charts(request.stock, request.interval)
+                
+        except Exception as cleanup_e:
+            print(f"⚠️ Non-fatal error during error cleanup: {str(cleanup_e)}")
         
         return JSONResponse(
             content={
@@ -948,6 +1195,19 @@ async def enhanced_mtf_analyze(request: AnalysisRequest):
         error_msg = f"Enhanced multi-timeframe analysis failed for {request.stock}: {str(e)}"
         print(f"[ENHANCED MTF ERROR] {error_msg}")
         print(f"[ENHANCED MTF ERROR] Traceback: {traceback.format_exc()}")
+        
+        # Attempt to clean up any resources that might have been created
+        try:
+            # Clean up any module references
+            if 'enhanced_mtf_analyzer' in locals():
+                del locals()['enhanced_mtf_analyzer']
+                
+            # Clean up any results that might have been created
+            if 'mtf_results' in locals() and isinstance(locals()['mtf_results'], dict):
+                locals()['mtf_results'].clear()
+                
+        except Exception as cleanup_e:
+            print(f"⚠️ Non-fatal error during MTF error cleanup: {str(cleanup_e)}")
         
         return JSONResponse(
             content={
@@ -1578,6 +1838,8 @@ async def get_charts(
     Generate and return charts for a stock symbol.
     """
     try:
+        print(f"🔍 Generating charts for {symbol} with interval {interval}")
+        
         # Validate interval
         valid_intervals = ['1min', '3min', '5min', '10min', '15min', '30min', '60min', '1day']
         if interval not in valid_intervals:
@@ -1618,6 +1880,7 @@ async def get_charts(
             raise HTTPException(status_code=400, detail=error_msg)
         
         # Calculate indicators for charts
+        print(f"📊 Calculating indicators for {symbol}")
         indicators = orchestrator.calculate_indicators(df, symbol)
         
         # Use chart manager for directory management
@@ -1626,10 +1889,23 @@ async def get_charts(
         output_dir = str(chart_dir)
         
         # Generate charts
-        chart_paths = orchestrator.create_visualizations(df, indicators, symbol, output_dir)
+        print(f"🎨 Generating chart visualizations for {symbol}")
+        chart_paths = orchestrator.create_visualizations(df, indicators, symbol, output_dir, backend_interval)
         
         # Convert charts to base64
+        print(f"🔄 Converting charts to base64 for {symbol}")
+        # Print only chart metadata, not the binary data
+        chart_metadata = {name: (path if isinstance(path, str) else "image_data_object") for name, path in chart_paths.items()}
+        print(f"Chart paths before conversion: {chart_metadata}")
+        
         charts_base64 = convert_charts_to_base64(chart_paths)
+        
+        # Clear original chart paths dictionary after conversion
+        chart_paths.clear()
+        
+        # Clear indicators data that's no longer needed
+        if isinstance(indicators, dict):
+            indicators.clear()
         
         response = {
             "success": True,
@@ -1640,6 +1916,10 @@ async def get_charts(
             "timestamp": pd.Timestamp.now().isoformat()
         }
         
+        # Clear dataframe to free memory
+        del df
+        
+        print(f"✅ Chart generation completed for {symbol}")
         return JSONResponse(content=response)
         
     except HTTPException:
@@ -1661,8 +1941,7 @@ async def get_charts(
 async def get_user_analyses(user_id: str, limit: int = 50):
     """Get analysis history for a user."""
     try:
-        # Import the database manager
-        from simple_database_manager import simple_db_manager
+
         
         # Validate that user_id is not empty
         if not user_id or not user_id.strip():
@@ -1696,7 +1975,6 @@ async def get_user_analyses(user_id: str, limit: int = 50):
 async def get_analysis_by_id(analysis_id: str):
     """Get a specific analysis by ID."""
     try:
-        from simple_database_manager import simple_db_manager
         
         # Validate that analysis_id is not empty
         if not analysis_id or not analysis_id.strip():
@@ -1722,7 +2000,6 @@ async def get_analysis_by_id(analysis_id: str):
 async def get_analyses_by_signal(signal: str, user_id: Optional[str] = None, limit: int = 20):
     """Get analyses filtered by signal type."""
     try:
-        from simple_database_manager import simple_db_manager
         
         actual_user_id = None
         if user_id:
@@ -1758,7 +2035,6 @@ async def get_analyses_by_signal(signal: str, user_id: Optional[str] = None, lim
 async def get_analyses_by_sector(sector: str, user_id: Optional[str] = None, limit: int = 20):
     """Get analyses filtered by sector."""
     try:
-        from simple_database_manager import simple_db_manager
         
         actual_user_id = None
         if user_id:
@@ -1794,7 +2070,6 @@ async def get_analyses_by_sector(sector: str, user_id: Optional[str] = None, lim
 async def get_high_confidence_analyses(min_confidence: float = 80.0, user_id: Optional[str] = None, limit: int = 20):
     """Get analyses with confidence above threshold."""
     try:
-        from simple_database_manager import simple_db_manager
         
         actual_user_id = None
         if user_id:
@@ -1830,7 +2105,6 @@ async def get_high_confidence_analyses(min_confidence: float = 80.0, user_id: Op
 async def get_user_analysis_summary(user_id: str):
     """Get analysis summary for a user."""
     try:
-        from simple_database_manager import simple_db_manager
         
         # Validate that user_id is not empty
         if not user_id or not user_id.strip():
@@ -1875,9 +2149,12 @@ async def get_chart_storage_stats():
     try:
         chart_manager = get_chart_manager()
         stats = chart_manager.get_storage_stats()
+        
+        # Redis image stats removed - charts are now generated in-memory
         return {
             "success": True,
-            "stats": stats
+            "file_storage_stats": stats,
+            "redis_storage_stats": {"status": "removed", "reason": "Charts generated in-memory"}
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get chart storage stats: {str(e)}")
@@ -1887,11 +2164,14 @@ async def cleanup_charts():
     """Manually trigger chart cleanup."""
     try:
         chart_manager = get_chart_manager()
-        stats = chart_manager.cleanup_old_charts()
+        file_stats = chart_manager.cleanup_old_charts()
+        
+        # Redis image cleanup removed - charts are now generated in-memory
         return {
             "success": True,
             "message": "Chart cleanup completed",
-            "stats": stats
+            "file_cleanup_stats": file_stats,
+            "redis_cleanup_stats": {"status": "removed", "reason": "Charts generated in-memory"}
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to cleanup charts: {str(e)}")
@@ -1901,11 +2181,15 @@ async def cleanup_specific_charts(symbol: str, interval: str):
     """Clean up charts for a specific symbol and interval."""
     try:
         chart_manager = get_chart_manager()
-        success = chart_manager.cleanup_specific_charts(symbol, interval)
-        if success:
+        file_success = chart_manager.cleanup_specific_charts(symbol, interval)
+        
+        # Redis image cleanup removed - charts are now generated in-memory
+        if file_success:
             return {
                 "success": True,
-                "message": f"Cleaned up charts for {symbol}_{interval}"
+                "message": f"Cleaned up charts for {symbol}_{interval}",
+                "file_cleanup": file_success,
+                "redis_cleanup": {"status": "removed", "reason": "Charts generated in-memory"}
             }
         else:
             return {
@@ -1913,7 +2197,7 @@ async def cleanup_specific_charts(symbol: str, interval: str):
                 "message": f"No charts found for {symbol}_{interval}"
             }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to cleanup specific charts: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to cleanup charts for {symbol}_{interval}: {str(e)}")
 
 @app.delete("/charts/all")
 async def cleanup_all_charts():
@@ -1928,6 +2212,78 @@ async def cleanup_all_charts():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to cleanup all charts: {str(e)}")
+
+# Redis Image Management Endpoints removed - charts are now generated in-memory
+# Only Redis image storage functionality has been removed, Redis is still used for data caching
+# Redis cache is important for sector analysis, stock data caching, and other performance optimizations
+
+# Redis Cache Management Endpoints
+# Note: Redis is still used for data caching, but not for image storage
+
+@app.get("/redis/cache/stats")
+async def get_redis_cache_stats():
+    """Get Redis cache statistics."""
+    try:
+        from redis_cache_manager import get_redis_cache_manager
+        cache_manager = get_redis_cache_manager()
+        stats = cache_manager.get_stats()
+        return {
+            "success": True,
+            "stats": stats,
+            "note": "Redis is used for data caching, but not for image storage"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get Redis cache stats: {str(e)}")
+
+@app.post("/redis/cache/clear")
+async def clear_redis_cache(data_type: str = None):
+    """Clear Redis cache entries."""
+    try:
+        from redis_cache_manager import get_redis_cache_manager
+        cache_manager = get_redis_cache_manager()
+        deleted_counts = cache_manager.clear(data_type)
+        return {
+            "success": True,
+            "message": f"Redis cache cleared for {data_type if data_type else 'all data types'}",
+            "deleted_counts": deleted_counts
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to clear Redis cache: {str(e)}")
+
+@app.delete("/redis/cache/stock/{symbol}")
+async def clear_stock_cache(symbol: str, exchange: str = "NSE"):
+    """Clear cache for a specific stock."""
+    try:
+        from redis_cache_manager import clear_stock_cache
+        stats = clear_stock_cache(symbol, exchange)
+        return {
+            "success": True,
+            "message": f"Cache cleared for {symbol}",
+            "stats": stats
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to clear stock cache: {str(e)}")
+
+@app.get("/redis/cache/stock/{symbol}")
+async def get_cached_stock_data(symbol: str, exchange: str = "NSE", interval: str = "day", period: int = 365):
+    """Get cached stock data."""
+    try:
+        from redis_cache_manager import get_cached_stock_data
+        data = get_cached_stock_data(symbol, exchange, interval, period)
+        if data is not None:
+            return {
+                "success": True,
+                "data": data.to_dict('records') if hasattr(data, 'to_dict') else data,
+                "cached": True
+            }
+        else:
+            return {
+                "success": False,
+                "message": "No cached data found",
+                "cached": False
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get cached stock data: {str(e)}")
 
 # Storage Management Endpoints
 @app.get("/storage/info")
@@ -1955,6 +2311,51 @@ async def get_storage_recommendations():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get storage recommendations: {str(e)}")
 
+# Root route
+@app.get("/")
+async def root():
+    """Root endpoint for the Analysis Service."""
+    return {
+        "service": "Stock Analysis Service",
+        "version": "1.0.0",
+        "status": "running",
+        "endpoints": {
+            "health": "/health",
+            "analyze": "/analyze",
+            "sector_list": "/sector/list",
+            "stock_sector": "/stock/{symbol}/sector",
+            "analyses_user": "/analyses/user/{user_id}"
+        },
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+# General OPTIONS handler to ensure CORS preflight succeeds for all analysis routes
+@app.options("/{path:path}")
+async def options_any(path: str):
+    """Handle OPTIONS preflight for any endpoint under the analysis service."""
+    return JSONResponse(
+        status_code=200,
+        content={"message": "OK"},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "*"
+        }
+    )
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001) 
+    
+    # Load environment variables
+    # Use PORT env var (provided by Render) if available, otherwise fall back to SERVICE_PORT
+    port = int(os.getenv("ANALYSIS_PORT", 8002))
+    host = os.getenv("SERVICE_HOST", "0.0.0.0")
+    
+    print(f"🚀 Starting {os.getenv('SERVICE_NAME', 'Analysis Service')} on {host}:{port}")
+    print(f"🔍 Analysis endpoints available at /analyze/*")
+    print(f"📊 Technical indicators available at /stock/*/indicators")
+    print(f"🏭 Sector analysis available at /sector/*")
+    print(f"📈 Pattern recognition available at /patterns/*")
+    
+    uvicorn.run(app, host=host, port=port) 

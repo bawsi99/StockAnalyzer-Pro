@@ -15,6 +15,7 @@ import time
 import json
 import asyncio
 import traceback
+import uuid
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 
@@ -61,7 +62,7 @@ from zerodha_client import ZerodhaDataClient
 JWT_SECRET = os.getenv('JWT_SECRET', 'your-secret-key-change-in-production')
 API_KEY_HEADER = 'X-API-Key'
 API_KEYS = os.getenv('API_KEYS', '').split(',')  # Comma-separated API keys
-REQUIRE_AUTH = os.getenv('REQUIRE_AUTH', 'true').lower() == 'true'
+REQUIRE_AUTH = os.getenv('REQUIRE_AUTH', 'false').lower() == 'true'
 
 # Simple in-memory token store (use Redis in production)
 active_tokens = set()
@@ -97,30 +98,47 @@ def verify_api_key(api_key: str) -> bool:
 
 async def authenticate_websocket(websocket: WebSocket) -> Optional[Dict]:
     """Authenticate WebSocket connection using JWT token or API key and validate origin."""
+    print(f"🔐 WebSocket authentication attempt - REQUIRE_AUTH: {REQUIRE_AUTH}")
+    
     # First, validate the origin
     origin = websocket.headers.get('origin')
+    print(f"🔐 Origin: {origin}")
+    print(f"🔐 Allowed origins: {CORS_ORIGINS}")
+    
     if origin and origin not in CORS_ORIGINS:
         print(f"❌ WebSocket connection rejected from unauthorized origin: {origin}")
         print(f"   Allowed origins: {CORS_ORIGINS}")
         return None
     
+    # If authentication is disabled, allow connection without token verification
     if not REQUIRE_AUTH:
+        print(f"✅ Authentication disabled, allowing connection")
         return {'user_id': str(uuid.uuid4()), 'auth_type': 'none'}
     
     # Try to get token from query parameters or headers
     token = websocket.query_params.get('token')
     api_key = websocket.headers.get(API_KEY_HEADER)
     
-    if token:
+    print(f"🔐 Token from query params: {token[:20] if token else 'None'}...")
+    print(f"🔐 API key from headers: {api_key[:10] if api_key else 'None'}...")
+    
+    if token and token != "undefined":
         # JWT authentication
         payload = verify_jwt_token(token)
-        if payload:
+        if payload and token in active_tokens:
+            print(f"✅ JWT authentication successful for user: {payload['user_id']}")
             return {'user_id': payload['user_id'], 'auth_type': 'jwt'}
+        else:
+            print(f"❌ JWT authentication failed - token invalid or not in active tokens")
     elif api_key:
         # API key authentication
         if verify_api_key(api_key):
+            print(f"✅ API key authentication successful")
             return {'user_id': f'api_user_{api_key[:8]}', 'auth_type': 'api_key'}
+        else:
+            print(f"❌ API key authentication failed")
     
+    print(f"❌ No valid authentication found")
     return None
 
 def make_json_serializable(obj):
@@ -155,7 +173,7 @@ def make_json_serializable(obj):
 app = FastAPI(title="Stock Data Service", version="1.0.0")
 
 # Load CORS origins from environment variable
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:8080,http://127.0.0.1:5173").split(",")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:8080,http://127.0.0.1:5173,https://stock-analyzer-pro.vercel.app,https://stock-analyzer-pro-git-prototype-aaryan-manawats-projects.vercel.app,https://stock-analyzer-cl9o3tivx-aaryan-manawats-projects.vercel.app,https://stockanalyzer-pro.vercel.app").split(",")
 CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGINS if origin.strip()]
 
 # Add CORS middleware
@@ -166,6 +184,24 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+# Root route
+@app.get("/")
+async def root():
+    """Root endpoint for the Data Service."""
+    return {
+        "service": "Stock Data Service",
+        "version": "1.0.0",
+        "status": "running",
+        "endpoints": {
+            "health": "/health",
+            "stock_data": "/stock/{symbol}/history",
+            "stock_info": "/stock/{symbol}/info",
+            "websocket": "/ws/stream",
+            "market_status": "/market/status"
+        },
+        "timestamp": datetime.now().isoformat()
+    }
 
 # --- Live Data Pub/Sub System ---
 class LiveDataPubSub:
@@ -286,6 +322,8 @@ class LiveDataPubSub:
                 if not hasattr(zerodha_ws_client, 'running') or not zerodha_ws_client.running:
                     print(f"⚠️  Zerodha WebSocket client not running. Cannot subscribe to tokens: {new_tokens}")
                     print("📊 Historical data is still available via REST API endpoints")
+                    # Add to global subscribed tokens anyway - they will be picked up when client reconnects
+                    self.global_subscribed_tokens.update(new_tokens)
                     return
                 
                 # Convert string tokens to integers for Zerodha
@@ -337,6 +375,46 @@ class LiveDataPubSub:
                 'subscribed_tokens': list(self.global_subscribed_tokens),
                 'token_subscribers': {token: len(subscribers) for token, subscribers in self.token_subscribers.items()}
             }
+    
+    def _format_data_for_frontend(self, data):
+        """Format data for frontend consumption with proper message types."""
+        try:
+            # Check if this is OHLCV candle data
+            if all(key in data for key in ['open', 'high', 'low', 'close']):
+                return {
+                    'type': 'candle',
+                    'data': {
+                        'time': data.get('timestamp', int(time.time())),
+                        'open': float(data.get('open', 0)),
+                        'high': float(data.get('high', 0)),
+                        'low': float(data.get('low', 0)),
+                        'close': float(data.get('close', 0)),
+                        'volume': float(data.get('volume', 0))
+                    }
+                }
+            # Check if this is tick/price data
+            elif 'price' in data or 'close' in data:
+                return {
+                    'type': 'tick',
+                    'data': {
+                        'price': float(data.get('price', data.get('close', 0))),
+                        'timestamp': data.get('timestamp', int(time.time())),
+                        'volume': float(data.get('volume', 0))
+                    }
+                }
+            # Default case - pass through with tick type
+            else:
+                return {
+                    'type': 'tick',
+                    'data': data
+                }
+        except Exception as e:
+            print(f"Error formatting data for frontend: {e}")
+            # Fallback to tick type
+            return {
+                'type': 'tick',
+                'data': data
+            }
 
     async def publish(self, data):
         current_time = time.time() * 1000
@@ -384,9 +462,12 @@ class LiveDataPubSub:
                     if current_time - last_sent < throttle_ms:
                         continue
 
+                # Format data for frontend consumption
+                formatted_data = self._format_data_for_frontend(data)
+                
                 # Handle batching
                 if filter_['batch']:
-                    self.client_batch[queue].append(data)
+                    self.client_batch[queue].append(formatted_data)
                     if len(self.client_batch[queue]) >= filter_['batch_size']:
                         batch_data = {
                             'type': 'batch',
@@ -396,7 +477,7 @@ class LiveDataPubSub:
                         self.client_batch[queue].clear()
                         self.client_throttle[queue] = current_time
                 else:
-                    await queue.put(data)
+                    await queue.put(formatted_data)
                     self.client_throttle[queue] = current_time
 
 live_pubsub = LiveDataPubSub()
@@ -645,10 +726,11 @@ async def ws_stream(websocket: WebSocket):
                             # Token subscription is now handled centrally by live_pubsub
                             # No need to manage individual subscriptions here
                             
+                            # IMPORTANT: keep token type consistent with publisher (use integers)
                             await live_pubsub.update_filter(
-                                queue, 
-                                tokens=[str(token) for token in all_tokens], 
-                                timeframes=timeframes, 
+                                queue,
+                                tokens=all_tokens,
+                                timeframes=timeframes,
                                 throttle_ms=throttle_ms,
                                 batch=batch,
                                 batch_size=batch_size,
@@ -697,11 +779,16 @@ async def ws_stream(websocket: WebSocket):
                             
                             # Token unsubscription is now handled centrally by live_pubsub
                             # Just update the filter to remove tokens/timeframes
-                            await live_pubsub.update_filter(
-                                queue,
-                                tokens=[],  # Clear all tokens
-                                timeframes=[]  # Clear all timeframes
-                            )
+                            # Remove only the specified tokens/timeframes instead of clearing everything
+                            # If none provided, clear all as a fallback
+                            if not symbols and not tokens and not timeframes:
+                                await live_pubsub.update_filter(queue, tokens=[], timeframes=[])
+                            else:
+                                # Compute remaining set by subtracting provided tokens
+                                current = live_pubsub.clients.get(queue, {}).get('tokens', set())
+                                to_remove = set(all_tokens)
+                                remaining = [t for t in current if t not in to_remove]
+                                await live_pubsub.update_filter(queue, tokens=remaining)
                             
                             response = {
                                 'type': 'unsubscribed',
@@ -1315,21 +1402,59 @@ async def clear_interval_cache(symbol: str, interval: str):
 @app.post("/auth/token")
 async def create_token(user_id: str):
     """Create a JWT token for WebSocket authentication."""
-    if REQUIRE_AUTH:
+    try:
+        if not JWT_AVAILABLE:
+            raise HTTPException(status_code=500, detail="JWT library not available")
+        
+        # Always create a token when this endpoint is called
+        # The REQUIRE_AUTH setting controls whether WebSocket connections require authentication
         token = create_jwt_token(user_id)
+        
+        # Store the token in active tokens set
+        active_tokens.add(token)
+        
+        print(f"🔐 Created JWT token for user: {user_id}")
         return {"token": token, "user_id": user_id}
-    else:
-        return {"message": "Authentication disabled"}
+        
+    except Exception as e:
+        print(f"❌ Error creating JWT token: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create token: {str(e)}")
 
 @app.get("/auth/verify")
 async def verify_token(token: str):
     """Verify a JWT token."""
-    payload = verify_jwt_token(token)
-    if payload:
-        return {"valid": True, "user_id": payload['user_id']}
-    else:
-        return {"valid": False}
+    try:
+        if not token or token == "undefined":
+            return {"valid": False, "error": "No token provided"}
+        
+        if not JWT_AVAILABLE:
+            return {"valid": False, "error": "JWT library not available"}
+        
+        payload = verify_jwt_token(token)
+        if payload:
+            # Check if token is in active tokens set
+            if token in active_tokens:
+                return {"valid": True, "user_id": payload['user_id']}
+            else:
+                return {"valid": False, "error": "Token not found in active tokens"}
+        else:
+            return {"valid": False, "error": "Invalid or expired token"}
+            
+    except Exception as e:
+        print(f"❌ Error verifying token: {e}")
+        return {"valid": False, "error": f"Verification failed: {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    
+    # Load environment variables
+    # Use PORT env var (provided by Render) if available, otherwise fall back to SERVICE_PORT
+    port = int(os.getenv("DATA_PORT", 8001))
+    host = os.getenv("SERVICE_HOST", "0.0.0.0")
+    
+    print(f"🚀 Starting {os.getenv('SERVICE_NAME', 'Data + WebSocket Service')} on {host}:{port}")
+    print(f"📊 Data endpoints available at /stock/*")
+    print(f"🔌 WebSocket streaming available at /ws/stream")
+    print(f"🔐 Authentication endpoints available at /auth/*")
+    
+    uvicorn.run(app, host=host, port=port) 
