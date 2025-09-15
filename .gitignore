@@ -248,3 +248,11 @@ backend/start_with_cors_fix.py
 # Duplicate files - keep only in backend directory
 /zerodha_instruments.csv
 /frontend/zerodha_instruments.csv
+
+# Data files that change frequently - don't track
+backend/data/zerodha_instruments.csv
+
+# Cache files - don't track
+cache/
+cache/*.csv
+cache/*.json
