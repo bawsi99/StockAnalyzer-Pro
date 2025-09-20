@@ -1,0 +1,68 @@
+LLM ANALYSIS RESULTS
+================================================================================
+
+Stock Symbol: TCS
+Company: Tata Consultancy Services
+Sector: IT Services
+Response Time: 2025-09-20T18:39:59.887489
+Response Length: 2446 characters
+Mathematical Calculations: 1 code snippets executed
+Calculation Results: 1 computational outputs
+
+COMPLETE LLM RESPONSE:
+----------------------------------------
+```json
+{
+  "trend_analysis": {
+    "direction": "bearish",
+    "strength": "moderate",
+    "confidence": 70,
+    "key_signals": [
+      "Price significantly below 200-day SMA (-11%)",
+      "20-day SMA slightly below 50-day SMA",
+      "20-day EMA below 50-day EMA"
+    ]
+  },
+  "momentum": {
+    "rsi_signal": "neutral",
+    "macd_signal": "bullish",
+    "momentum_strength": "moderate"
+  },
+  "critical_levels": {
+    "nearest_support": 3056.05,
+    "nearest_resistance": 3545.0,
+    "key_levels": [
+      {
+        "price": 3056.05,
+        "type": "support"
+      },
+      {
+        "price": 2991.6,
+        "type": "support"
+      },
+      {
+        "price": 3545.0,
+        "type": "resistance"
+      },
+      {
+        "price": 3630.5,
+        "type": "resistance"
+      },
+      {
+        "price": 3710.0,
+        "type": "resistance"
+      }
+    ]
+  },
+  "trading_recommendation": {
+    "bias": "bullish",
+    "confidence": 65,
+    "entry_price": 3186.03,
+    "target_price": 3545.0,
+    "stop_loss": 3050.0,
+    "rationale": "The long-term trend for TCS is bearish, as indicated by the current price being significantly below the 200-day SMA. However, short-term momentum indicators are bullish, with MACD showing an upward trend (positive histogram) and RSI in a neutral but rising zone (59.38). The inferred current price (~3186.03, derived from price_to_sma_200) is also above the 20-day and 50-day SMAs/EMAs, confirming a recent short-term upward movement. This sets up a potential counter-trend rally. A long position is recommended to capitalize on this short-term bullish momentum, targeting the nearest significant resistance at 3545.0, which aligns closely with the 200-day SMA (3579.81), acting as a strong overhead resistance. A stop-loss placed just below the immediate support level of 3056.05 helps manage risk for this counter-trend setup."
+  },
+  "conflicts_resolved": "The conflict between the prevailing long-term bearish trend (indicated by price significantly below SMA 200 and overall MA stacking) and the strong short-term bullish momentum (MACD, rising RSI, and current price above short-term EMAs/SMAs) is addressed by recommending a short-term counter-trend long position. The trade aims to capture a tactical rally within the broader downtrend, with the target aligned to a major resistance zone (nearest resistance and 200-day SMA) to account for the underlying bearish bias.",
+  "confidence_score": 65
+}
+```

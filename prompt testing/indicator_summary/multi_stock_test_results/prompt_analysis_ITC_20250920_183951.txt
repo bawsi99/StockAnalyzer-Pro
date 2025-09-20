@@ -1,0 +1,130 @@
+PROMPT ANALYSIS FOR LLM
+================================================================================
+
+Stock Symbol: ITC
+Company: ITC Limited
+Sector: FMCG/Tobacco
+Expected Behavior: large_cap_defensive
+Generated: 2025-09-20T18:39:51.222788
+Prompt Length: 2194 characters
+Context Length: 701 characters
+
+KEY TECHNICAL INDICATORS SUMMARY:
+----------------------------------------
+{
+  "current_price": 410.65,
+  "rsi_14": 56.648199445983316,
+  "rsi_status": "neutral",
+  "macd_signal": "bullish",
+  "sma_20": 408.7975,
+  "sma_50": 412.08,
+  "sma_200": 418.27099999999996,
+  "price_vs_sma200_pct": -0.018220244769539318,
+  "volume_ratio": 1.4553674158208503,
+  "death_cross": false,
+  "golden_cross": false,
+  "enhanced_levels_available": true,
+  "support_levels_count": 2,
+  "resistance_levels_count": 3
+}
+
+FINAL PROMPT SENT TO LLM:
+----------------------------------------
+You are a technical analyst. Analyze the provided indicators and generate actionable trading insights.
+
+## Analysis Context:
+**Symbol**: ITC | **Timeframe**: 1yr, daily
+
+## Technical Data:
+{
+ "trend_indicators": {
+  "sma_20": 408.8,
+  "sma_50": 412.08,
+  "sma_200": 418.27,
+  "ema_20": 410.65,
+  "ema_50": 412.07,
+  "price_to_sma_200": -0.02,
+  "sma_20_to_sma_50": -0.01,
+  "golden_cross": false,
+  "death_cross": false
+ },
+ "momentum_indicators": {
+  "rsi_current": 56.65,
+  "rsi_status": "neutral",
+  "macd": {
+   "histogram": 0.36,
+   "trend": "bullish"
+  }
+ },
+ "volume_indicators": {
+  "volume_ratio": 1.46,
+  "volume_trend": "neutral"
+ }
+}
+
+## Levels:
+{
+ "support": [
+  400.0,
+  390.15
+ ],
+ "resistance": [
+  419.8,
+  428.55,
+  437.95
+ ]
+}
+
+## Signal Conflicts: None detected
+
+Company: ITC Limited, Sector: FMCG/Tobacco
+
+
+## Required JSON Output:
+
+```json
+{
+  "trend_analysis": {
+    "direction": "bullish|bearish|neutral",
+    "strength": "strong|moderate|weak",
+    "confidence": 0-100,
+    "key_signals": ["primary trend indicators"]
+  },
+  "momentum": {
+    "rsi_signal": "overbought|oversold|neutral",
+    "macd_signal": "bullish|bearish|neutral",
+    "momentum_strength": "strong|moderate|weak"
+  },
+  "critical_levels": {
+    "nearest_support": 0.0,
+    "nearest_resistance": 0.0,
+    "key_levels": [{ "price": 0.0, "type": "support|resistance" }]
+  },
+  "trading_recommendation": {
+    "bias": "bullish|bearish|neutral",
+    "confidence": 0-100,
+    "entry_price": 0.0,
+    "target_price": 0.0,
+    "stop_loss": 0.0,
+    "rationale": "Clear reasoning for recommendation"
+  },
+  "conflicts_resolved": "How any indicator conflicts were resolved",
+  "confidence_score": 0-100
+}
+```
+
+## Instructions:
+1. Analyze trend using both SMA (stability) and EMA (responsiveness)
+2. Use EMA for entry signals, SMA for trend confirmation
+3. Assess momentum using RSI and MACD signals
+4. Identify critical support/resistance levels
+5. Provide one clear trading recommendation
+6. Resolve any conflicts between indicators
+
+**Output Requirements:**
+- Return ONLY valid JSON
+- Use provided data to populate specific price levels
+- Include clear rationale for recommendations
+
+
+Let me solve this by ..

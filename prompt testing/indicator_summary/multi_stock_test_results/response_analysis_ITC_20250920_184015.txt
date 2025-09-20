@@ -1,0 +1,54 @@
+LLM ANALYSIS RESULTS
+================================================================================
+
+Stock Symbol: ITC
+Company: ITC Limited
+Sector: FMCG/Tobacco
+Response Time: 2025-09-20T18:40:15.354057
+Response Length: 2389 characters
+Mathematical Calculations: 1 code snippets executed
+Calculation Results: 1 computational outputs
+
+COMPLETE LLM RESPONSE:
+----------------------------------------
+```json
+{
+  "trend_analysis": {
+    "direction": "neutral",
+    "strength": "weak",
+    "confidence": 50,
+    "key_signals": [
+      "price_to_sma_200 indicates price is 2% below long-term average (bearish, but weak)",
+      "sma_20_to_sma_50 indicates short-term average is 1% below medium-term average (bearish, but weak)",
+      "No Golden Cross or Death Cross detected, indicating lack of strong directional trend",
+      "All major moving averages (SMA20, SMA50, SMA200, EMA20, EMA50) are closely grouped, suggesting consolidation."
+    ]
+  },
+  "momentum": {
+    "rsi_signal": "neutral",
+    "macd_signal": "bullish",
+    "momentum_strength": "moderate"
+  },
+  "critical_levels": {
+    "nearest_support": 400.0,
+    "nearest_resistance": 419.8,
+    "key_levels": [
+      { "price": 400.0, "type": "support" },
+      { "price": 390.15, "type": "support" },
+      { "price": 419.8, "type": "resistance" },
+      { "price": 428.55, "type": "resistance" },
+      { "price": 437.95, "type": "resistance" }
+    ]
+  },
+  "trading_recommendation": {
+    "bias": "bullish",
+    "confidence": 65,
+    "entry_price": 420.0,
+    "target_price": 428.55,
+    "stop_loss": 418.0,
+    "rationale": "ITC is currently in a consolidation phase, with its price tightly clustered around various moving averages. While long-term trend indicators (SMA200, SMA20/SMA50 relationship) show a slight bearish tilt, short-term momentum (MACD) is bullish, and volume indicators suggest strong buying interest (volume ratio 1.46). This indicates underlying strength. A tactical long position is recommended upon a confirmed breakout above the immediate resistance at 419.8, aiming for the next resistance level. The stop loss is placed just below the breakout level to manage risk effectively."
+  },
+  "conflicts_resolved": "The trend indicators (SMAs, price to SMA200) suggest a neutral to slightly bearish outlook due to the price being below key moving averages and the SMA20 being below the SMA50. However, momentum indicators (bullish MACD, neutral RSI) and a positive volume ratio (indicating higher buying volume) point towards a potential bullish move. The conflict is resolved by acknowledging the prevailing consolidation but prioritizing the strengthening momentum and volume for a tactical, short-term bullish trade opportunity on a confirmed breakout above resistance.",
+  "confidence_score": 65
+}
+```
