@@ -1,0 +1,138 @@
+PROMPT ANALYSIS FOR LLM
+================================================================================
+
+Stock Symbol: RELIANCE
+Company: Reliance Industries
+Sector: Energy/Petrochemicals
+Expected Behavior: large_cap_stable
+Generated: 2025-09-20T18:39:18.954768
+Prompt Length: 2436 characters
+Context Length: 943 characters
+
+KEY TECHNICAL INDICATORS SUMMARY:
+----------------------------------------
+{
+  "current_price": 1407.4,
+  "rsi_14": 76.77677677677687,
+  "rsi_status": "overbought",
+  "macd_signal": "bullish",
+  "sma_20": 1386.395,
+  "sma_50": 1406.45,
+  "sma_200": 1339.0327500000003,
+  "price_vs_sma200_pct": 0.051057190348779535,
+  "volume_ratio": 1.4054452263364743,
+  "death_cross": false,
+  "golden_cross": false,
+  "enhanced_levels_available": true,
+  "support_levels_count": 3,
+  "resistance_levels_count": 2
+}
+
+FINAL PROMPT SENT TO LLM:
+----------------------------------------
+You are a technical analyst. Analyze the provided indicators and generate actionable trading insights.
+
+## Analysis Context:
+**Symbol**: RELIANCE | **Timeframe**: 1yr, daily
+
+## Technical Data:
+{
+ "trend_indicators": {
+  "sma_20": 1386.39,
+  "sma_50": 1406.45,
+  "sma_200": 1339.03,
+  "ema_20": 1394.23,
+  "ema_50": 1402.3,
+  "price_to_sma_200": 0.05,
+  "sma_20_to_sma_50": -0.01,
+  "golden_cross": false,
+  "death_cross": false
+ },
+ "momentum_indicators": {
+  "rsi_current": 76.78,
+  "rsi_status": "overbought",
+  "macd": {
+   "histogram": 6.0,
+   "trend": "bullish"
+  }
+ },
+ "volume_indicators": {
+  "volume_ratio": 1.41,
+  "volume_trend": "neutral"
+ }
+}
+
+## Levels:
+{
+ "support": [
+  1361.2,
+  1320.3,
+  1269.05
+ ],
+ "resistance": [
+  1468.6,
+  1551.0
+ ]
+}
+
+## Signal Conflicts (5 detected, CRITICAL severity):
+
+**Timeframe Conflicts:**
+- Mixed moving average alignment signals
+
+**Momentum Vs Trend:**
+- RSI overbought while MACD bullish
+
+**Resolution:** Wait for clearer signals or reduce position size
+
+Company: Reliance Industries, Sector: Energy/Petrochemicals
+
+
+## Required JSON Output:
+
+```json
+{
+  "trend_analysis": {
+    "direction": "bullish|bearish|neutral",
+    "strength": "strong|moderate|weak",
+    "confidence": 0-100,
+    "key_signals": ["primary trend indicators"]
+  },
+  "momentum": {
+    "rsi_signal": "overbought|oversold|neutral",
+    "macd_signal": "bullish|bearish|neutral",
+    "momentum_strength": "strong|moderate|weak"
+  },
+  "critical_levels": {
+    "nearest_support": 0.0,
+    "nearest_resistance": 0.0,
+    "key_levels": [{ "price": 0.0, "type": "support|resistance" }]
+  },
+  "trading_recommendation": {
+    "bias": "bullish|bearish|neutral",
+    "confidence": 0-100,
+    "entry_price": 0.0,
+    "target_price": 0.0,
+    "stop_loss": 0.0,
+    "rationale": "Clear reasoning for recommendation"
+  },
+  "conflicts_resolved": "How any indicator conflicts were resolved",
+  "confidence_score": 0-100
+}
+```
+
+## Instructions:
+1. Analyze trend using both SMA (stability) and EMA (responsiveness)
+2. Use EMA for entry signals, SMA for trend confirmation
+3. Assess momentum using RSI and MACD signals
+4. Identify critical support/resistance levels
+5. Provide one clear trading recommendation
+6. Resolve any conflicts between indicators
+
+**Output Requirements:**
+- Return ONLY valid JSON
+- Use provided data to populate specific price levels
+- Include clear rationale for recommendations
+
+
+Let me solve this by ..

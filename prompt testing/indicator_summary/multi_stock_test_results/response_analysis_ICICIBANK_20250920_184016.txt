@@ -1,0 +1,72 @@
+LLM ANALYSIS RESULTS
+================================================================================
+
+Stock Symbol: ICICIBANK
+Company: ICICI Bank
+Sector: Banking
+Response Time: 2025-09-20T18:40:16.757204
+Response Length: 2404 characters
+
+COMPLETE LLM RESPONSE:
+----------------------------------------
+```json
+{
+  "trend_analysis": {
+    "direction": "neutral",
+    "strength": "weak",
+    "confidence": 40,
+    "key_signals": [
+      "SMA 20 below SMA 50 (bearish short-term)",
+      "EMA 20 below EMA 50 (bearish short-term)",
+      "Price above SMA 200 (bullish long-term)",
+      "Price below short-term EMAs/SMAs",
+      "Mixed moving average alignment"
+    ]
+  },
+  "momentum": {
+    "rsi_signal": "neutral",
+    "macd_signal": "bullish",
+    "momentum_strength": "moderate"
+  },
+  "critical_levels": {
+    "nearest_support": 1315.4,
+    "nearest_resistance": 1436.0,
+    "key_levels": [
+      {
+        "price": 1315.4,
+        "type": "support"
+      },
+      {
+        "price": 1265.0,
+        "type": "support"
+      },
+      {
+        "price": 1217.4,
+        "type": "support"
+      },
+      {
+        "price": 1436.0,
+        "type": "resistance"
+      },
+      {
+        "price": 1466.8,
+        "type": "resistance"
+      },
+      {
+        "price": 1500.0,
+        "type": "resistance"
+      }
+    ]
+  },
+  "trading_recommendation": {
+    "bias": "neutral",
+    "confidence": 30,
+    "entry_price": 0.0,
+    "target_price": 0.0,
+    "stop_loss": 0.0,
+    "rationale": "High severity conflicts are detected from mixed moving average signals. Short-term indicators (SMA 20, EMA 20, SMA 50, EMA 50) show bearish alignment (EMA20 below EMA50, SMA20 below SMA50, and current price below short-term MAs), suggesting downward pressure. However, the long-term trend remains bullish with the price firmly above SMA 200, and MACD shows bullish momentum. Following the recommended resolution for such conflicts, it is prudent to wait for clearer directional signals. No immediate directional trade is recommended at this time, reflected by the 0.0 values for entry, target, and stop loss. Traders should monitor for a confirmed breakout above the nearest resistance at 1436.0 for a potential bullish opportunity, or a breakdown below the nearest support at 1315.4 for a bearish signal."
+  },
+  "conflicts_resolved": "The high severity conflict arising from mixed moving average alignment signals (short-term bearish crossovers and price below short-term MAs contradicted by a long-term bullish trend and bullish MACD momentum) is resolved by adopting a neutral bias and recommending to wait for clearer signals, as per the suggested resolution in the analysis context.",
+  "confidence_score": 40
+}
+```
