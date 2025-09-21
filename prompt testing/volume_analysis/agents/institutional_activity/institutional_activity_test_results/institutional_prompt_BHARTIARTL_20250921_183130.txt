@@ -1,0 +1,119 @@
+INSTITUTIONAL ACTIVITY ANALYSIS PROMPT
+================================================================================
+
+Stock Symbol: BHARTIARTL
+Company: Bharti Airtel
+Sector: Telecommunications
+Expected Pattern: cyclical_institutional
+Generated: 2025-09-21T18:31:30.068125
+Prompt Length: 2967 characters
+Context Length: 748 characters
+
+KEY VOLUME METRICS SUMMARY:
+----------------------------------------
+{
+  "current_volume": 11287603.0,
+  "volume_ratio": 2.5325378787645074,
+  "large_volume_days": 2,
+  "obv_trend": "bullish",
+  "ad_line_trend": "accumulation",
+  "buying_pressure": 0.4515760713792881,
+  "selling_pressure": 0.5421576387235222,
+  "quiet_accumulation_score": 0.0,
+  "institutional_activity_level": "very_low"
+}
+
+FINAL PROMPT SENT TO LLM:
+----------------------------------------
+You are an Institutional Activity Specialist. Your sole purpose is to detect smart money accumulation and distribution patterns through volume analysis.
+
+## Analysis Context:
+Stock: BHARTIARTL (Bharti Airtel)
+Sector: Telecommunications
+Analysis Period: 1 Year Daily Data
+
+VOLUME ANALYSIS DATA:
+Current Volume: 11,287,603
+20-Day Avg Volume: 4,457,032
+Volume Ratio (Current/Avg): 2.53x
+Large Volume Days: 2 (0.8%)
+
+INSTITUTIONAL ACTIVITY PATTERNS:
+OBV Trend: bullish
+A/D Line Trend: accumulation
+Price-Volume Correlation: 0.451
+
+SMART MONEY INDICATORS:
+Buying Pressure Ratio: 45.2%
+Selling Pressure Ratio: 54.2%
+Quiet Accumulation Score: 0.0
+Distribution Score: 2.0
+
+VOLUME PROFILE DATA:
+Recent Volume Pattern: [2547552, 4517793, 3566139, 4718266, 3192824]
+Volume Volatility: 8,643,837
+Max Volume Ratio: 10.34x
+
+ADVANCED INSTITUTIONAL ANALYSIS:
+Activity Level: very_low
+Primary Activity: distribution
+Activity Confidence: N/A
+
+## Your Specific Task:
+Analyze volume patterns to identify institutional buying/selling behavior and smart money flow.
+
+## Key Analysis Points:
+- Large block transactions vs retail activity
+- Volume patterns during price consolidation (accumulation)
+- Volume patterns during price distribution phases
+- Systematic vs random volume patterns
+
+## Instructions:
+1. Look for signs of quiet accumulation (high volume, stable prices)
+2. Identify distribution patterns (high volume, declining prices)
+3. Detect institutional footprints in volume profile
+4. Assess smart money sentiment and timing
+
+## Required Output Format:
+
+Output ONLY a valid JSON object. NO PROSE, NO EXPLANATIONS OUTSIDE THE JSON.
+
+```json
+{
+  "institutional_activity_level": "high/medium/low",
+  "primary_activity": "accumulation/distribution/neutral",
+  "activity_confidence": "high/medium/low",
+  "accumulation_signals": {
+    "quiet_accumulation": true/false,
+    "volume_on_dips": "high/medium/low",
+    "price_support_strength": "strong/weak/none"
+  },
+  "distribution_signals": {
+    "volume_on_rallies": "high/medium/low", 
+    "price_resistance_strength": "strong/weak/none",
+    "selling_pressure": "high/medium/low"
+  },
+  "institutional_sentiment": "bullish/bearish/neutral",
+  "smart_money_timing": {
+    "entry_phase": "early/middle/late/complete",
+    "activity_duration": "short/medium/long_term",
+    "activity_intensity": "aggressive/moderate/passive"
+  },
+  "volume_profile_analysis": {
+    "high_volume_zones": ["price_level_1", "price_level_2"],
+    "institutional_zones": ["accumulation_zone", "distribution_zone"],
+    "retail_vs_institutional_ratio": 0.0
+  },
+  "predictive_indicators": {
+    "next_move_direction": "up/down/sideways",
+    "move_probability": 0-100,
+    "time_horizon": "days/weeks/months"
+  },
+  "confidence_score": 0-100,
+  "key_insight": "Brief insight about institutional activity"
+}
+```
+
+Focus only on institutional activity patterns. Ignore individual anomalies, price trends, or support/resistance levels.
+
+Let me solve this by ..

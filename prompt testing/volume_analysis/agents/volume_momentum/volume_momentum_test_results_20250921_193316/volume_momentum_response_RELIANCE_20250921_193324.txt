@@ -1,0 +1,33 @@
+VOLUME MOMENTUM ANALYSIS RESULTS
+================================================================================
+
+Stock Symbol: RELIANCE
+Company: Reliance Industries
+Sector: Energy/Petrochemicals
+Response Time: 2025-09-21T19:33:24.523770
+Response Length: 329 characters
+JSON Parsed Successfully: True
+
+PARSED JSON RESPONSE:
+----------------------------------------
+{
+  "momentum_direction": "increasing",
+  "momentum_strength": "strong",
+  "trend_sustainability": "medium",
+  "continuation_probability": 55,
+  "confidence_score": 65,
+  "key_insight": "Strong short-term volume acceleration indicates positive momentum, but the weak primary trend suggests moderate sustainability."
+}
+
+COMPLETE LLM RESPONSE:
+----------------------------------------
+```json
+{
+  "momentum_direction": "increasing",
+  "momentum_strength": "strong",
+  "trend_sustainability": "medium",
+  "continuation_probability": 55,
+  "confidence_score": 65,
+  "key_insight": "Strong short-term volume acceleration indicates positive momentum, but the weak primary trend suggests moderate sustainability."
+}
+```

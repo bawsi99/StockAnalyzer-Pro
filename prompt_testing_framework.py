@@ -319,14 +319,6 @@ class PromptTester:
                 evaluation_criteria=["completeness", "accuracy", "actionability", "format_compliance"]
             ),
             PromptTestConfig(
-                prompt_name="optimized_technical_overview",
-                analysis_type=AnalysisType.COMPREHENSIVE_OVERVIEW,
-                requires_image=True,
-                expected_output_format="markdown",
-                key_output_fields=["overall_trend", "volume_analysis", "momentum_assessment"],
-                evaluation_criteria=["technical_depth", "clarity", "pattern_recognition"]
-            ),
-            PromptTestConfig(
                 prompt_name="optimized_volume_analysis",
                 analysis_type=AnalysisType.VOLUME_ANALYSIS,
                 requires_image=True,
