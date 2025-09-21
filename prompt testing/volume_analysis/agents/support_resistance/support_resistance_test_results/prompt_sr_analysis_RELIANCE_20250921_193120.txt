@@ -1,0 +1,154 @@
+SUPPORT/RESISTANCE PROMPT ANALYSIS FOR LLM
+================================================================================
+
+Stock Symbol: RELIANCE
+Company: Reliance Industries
+Sector: Energy/Petrochemicals
+Expected Behavior: strong_levels_large_cap
+Generated: 2025-09-21T19:31:20.385608
+Prompt Length: 4043 characters
+Context Length: 1211 characters
+Charts Generated: 2
+  - Comprehensive: RELIANCE_comprehensive_20250921_193119.png
+  - Strength: RELIANCE_strength_20250921_193119.png
+
+KEY SUPPORT/RESISTANCE SUMMARY:
+----------------------------------------
+{
+  "current_price": 1407.4,
+  "support_levels_count": 5,
+  "resistance_levels_count": 5,
+  "nearest_support": {
+    "price": 1403.413888888889,
+    "type": "support",
+    "strength": 1.0,
+    "volume": 48023084.98727438,
+    "total_tests": 80,
+    "successful_tests": 71,
+    "failed_tests": 9,
+    "success_rate": 0.8875,
+    "last_test_date": "2025-09-18 00:00:00+05:30",
+    "reliability": "very_high",
+    "original_type": "volume_node"
+  },
+  "nearest_resistance": {
+    "price": 1431.9,
+    "type": "resistance",
+    "strength": 0.0048886095397723305,
+    "volume": 272699057.5480325,
+    "total_tests": 62,
+    "successful_tests": 48,
+    "failed_tests": 14,
+    "success_rate": 0.7741935483870968,
+    "last_test_date": "2025-09-18 00:00:00+05:30",
+    "reliability": "very_high",
+    "original_type": "swing_high"
+  },
+  "range_position": "near_support",
+  "analysis_quality_score": 100.0,
+  "total_validated_levels": 11,
+  "strongest_support": 1403.413888888889,
+  "strongest_resistance": 1461.4
+}
+
+FINAL PROMPT SENT TO LLM:
+----------------------------------------
+You are a Support/Resistance Level Validator for a stock trading decision pipeline. Your sole purpose is to validate and prioritize pre-calculated support/resistance levels for immediate trading decisions.
+
+## Analysis Context:
+Stock: RELIANCE - Reliance Industries
+Sector: Energy/Petrochemicals
+Current Price: ₹1407.40
+
+TOP SUPPORT LEVELS (Pre-calculated & Validated):
+  1. ₹1222.79 - very_high reliability (82.8% success) - 13.1% away
+  2. ₹1372.58 - very_high reliability (82.1% success) - 2.5% away
+  3. ₹1403.41 - very_high reliability (88.8% success) - 0.3% away
+
+TOP RESISTANCE LEVELS (Pre-calculated & Validated):
+  1. ₹1249.22 - very_high reliability (75.0% success) - 11.2% away
+  2. ₹1275.65 - very_high reliability (81.9% success) - 9.4% away
+  3. ₹1326.00 - very_high reliability (85.0% success) - 5.8% away
+
+CURRENT POSITION CONTEXT:
+  Nearest Key Level: ₹1403.41 (support) - very_high reliability
+  Distance to Nearest Level: 0.3%
+  Current Risk/Reward Ratio: 0.56:1
+  Suggested Strategy: Buy Near Support
+
+Pre-Analysis Confidence: 100.0/100
+
+CHART ANALYSIS:
+The following optimized charts have been generated for visual analysis:
+- Comprehensive Chart: RELIANCE_comprehensive_20250921_193119.png (Price + S/R Levels + Volume Profile + Analysis Summary)
+- Strength Chart: RELIANCE_strength_20250921_193119.png (Level Strength Scores + Component Breakdown)
+Please analyze these charts along with the numerical data provided.
+
+
+## Your Specific Task:
+Validate and prioritize the provided volume-validated support/resistance levels to determine which levels are most critical for current trading decisions.
+
+## Key Focus Areas:
+- Validate level reliability for current market conditions
+- Identify the 2-3 most critical levels for immediate trading decisions
+- Assess current price position risk/opportunity relative to key levels
+- Provide clear, actionable trading guidance
+
+## Instructions:
+1. Review the pre-calculated levels and validate their current relevance
+2. Prioritize levels based on proximity, reliability, and trading significance
+3. Assess current price position and breakout/breakdown probabilities
+4. Generate focused trading recommendations
+
+## Required Output Format:
+
+Output ONLY a valid JSON object. NO PROSE, NO EXPLANATIONS OUTSIDE THE JSON.
+
+```json
+{
+  "validated_levels": [
+    {
+      "price_level": 0.0,
+      "type": "support/resistance",
+      "priority": "high/medium/low",
+      "trading_relevance": "immediate/medium_term/long_term",
+      "reliability_score": 0-100,
+      "distance_percentage": 0.0
+    }
+  ],
+  "current_position": {
+    "current_price": 0.0,
+    "nearest_key_level": 0.0,
+    "level_type": "support/resistance",
+    "distance_percentage": 0.0,
+    "position_status": "near_support/near_resistance/between_levels/at_breakout",
+    "breakout_probability": "high/medium/low"
+  },
+  "trading_decision": {
+    "primary_level_to_watch": 0.0,
+    "secondary_level": 0.0,
+    "entry_opportunity": "buy_opportunity/sell_opportunity/wait_for_breakout/avoid",
+    "stop_loss_suggestion": 0.0,
+    "target_suggestion": 0.0,
+    "risk_assessment": "low/medium/high",
+    "position_sizing_factor": "conservative/moderate/aggressive"
+  },
+  "level_alerts": {
+    "immediate_watch_levels": [0.0, 0.0],
+    "breakout_levels": [0.0, 0.0],
+    "invalidation_levels": [0.0, 0.0]
+  },
+  "confidence_score": 0-100,
+  "key_insight": "One concise sentence about the most important level for trading decisions"
+}
+```
+
+Focus on trading decision support, not analysis. Prioritize actionable guidance over comprehensive data.
+
+
+Let me solve this by ..
+
+IMPORTANT: Analyze the provided charts to validate and enhance your support/resistance analysis:
+- Comprehensive Chart: Use for visual validation of price action, S/R levels, volume profile, and overall market structure
+- Strength Chart: Use to understand the relative reliability and scoring methodology of each identified level
+Compare visual patterns with numerical data and identify any discrepancies between calculated levels and chart formations.

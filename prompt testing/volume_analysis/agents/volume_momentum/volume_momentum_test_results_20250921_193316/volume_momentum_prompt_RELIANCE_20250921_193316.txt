@@ -1,0 +1,74 @@
+VOLUME MOMENTUM PROMPT ANALYSIS FOR LLM
+================================================================================
+
+Stock Symbol: RELIANCE
+Company: Reliance Industries
+Sector: Energy/Petrochemicals
+Expected Behavior: high_volume_stability
+Generated: 2025-09-21T19:33:16.740608
+Prompt Length: 1398 characters
+Context Length: 314 characters
+
+KEY VOLUME MOMENTUM INDICATORS SUMMARY:
+----------------------------------------
+{
+  "volume_trend_direction": "stable",
+  "trend_strength": "weak",
+  "momentum_phase": "building",
+  "primary_trend_strength": "weak",
+  "overall_momentum_direction": "positive",
+  "momentum_strength": "very_strong",
+  "current_phase": "building",
+  "trend_continuation_probability": 0.5499999999999999,
+  "sustainability_score": 63.33333333333333,
+  "quality_score": 100
+}
+
+FINAL PROMPT SENT TO LLM:
+----------------------------------------
+You are a Volume Trend Momentum Specialist. Your sole purpose is to assess volume momentum sustainability and acceleration for momentum trading decisions.
+
+## Analysis Context:
+Stock: RELIANCE (Reliance Industries)
+Sector: Energy/Petrochemicals
+Analysis Period: 90 days
+
+MOMENTUM METRICS:
+Primary Trend: stable (weak)
+Trend Agreement: 0.67
+ROC 10-Day: +133.0% (Avg: +12.5%)
+Momentum Phase: positive
+
+SUSTAINABILITY:
+Sustainability Score: 63.33333333333333/100
+Continuation Probability: 55.0%
+
+## Your Task:
+Analyze volume momentum patterns to determine trend sustainability and acceleration.
+
+## Key Analysis Points:
+- Volume momentum direction and acceleration
+- Momentum sustainability factors
+- Trend continuation probability
+
+## Instructions:
+1. Assess volume momentum strength and direction
+2. Evaluate momentum sustainability indicators
+3. Determine trend continuation probability
+
+## Required Output Format:
+
+Output ONLY a valid JSON object. NO PROSE, NO EXPLANATIONS OUTSIDE THE JSON.
+
+```json
+{
+  "momentum_direction": "increasing/decreasing/neutral",
+  "momentum_strength": "strong/moderate/weak",
+  "trend_sustainability": "high/medium/low",
+  "continuation_probability": 0-100,
+  "confidence_score": 0-100,
+  "key_insight": "Brief actionable insight about volume momentum"
+}
+```
+
+Focus exclusively on volume momentum patterns. Ignore price levels, institutional activity, or anomalies.

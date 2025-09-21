@@ -1,0 +1,76 @@
+LLM SUPPORT/RESISTANCE ANALYSIS RESULTS
+================================================================================
+
+Stock Symbol: RELIANCE
+Company: Reliance Industries
+Sector: Energy/Petrochemicals
+Response Time: 2025-09-21T19:31:57.279121
+Response Length: 1718 characters
+Charts Analyzed: 2
+  - Comprehensive: RELIANCE_comprehensive_20250921_193119.png
+  - Strength: RELIANCE_strength_20250921_193119.png
+
+COMPLETE LLM RESPONSE:
+----------------------------------------
+```json
+{
+  "validated_levels": [
+    {
+      "price_level": 1403.41,
+      "type": "support",
+      "priority": "high",
+      "trading_relevance": "immediate",
+      "reliability_score": 96,
+      "distance_percentage": 0.28
+    },
+    {
+      "price_level": 1431.90,
+      "type": "resistance",
+      "priority": "high",
+      "trading_relevance": "immediate",
+      "reliability_score": 91,
+      "distance_percentage": 1.74
+    },
+    {
+      "price_level": 1372.58,
+      "type": "support",
+      "priority": "medium",
+      "trading_relevance": "medium_term",
+      "reliability_score": 93,
+      "distance_percentage": 2.47
+    },
+    {
+      "price_level": 1461.40,
+      "type": "resistance",
+      "priority": "medium",
+      "trading_relevance": "medium_term",
+      "reliability_score": 95,
+      "distance_percentage": 3.84
+    }
+  ],
+  "current_position": {
+    "current_price": 1407.40,
+    "nearest_key_level": 1403.41,
+    "level_type": "support",
+    "distance_percentage": 0.3,
+    "position_status": "near_support",
+    "breakout_probability": "medium"
+  },
+  "trading_decision": {
+    "primary_level_to_watch": 1403.41,
+    "secondary_level": 1431.90,
+    "entry_opportunity": "buy_opportunity",
+    "stop_loss_suggestion": 1401.00,
+    "target_suggestion": 1431.90,
+    "risk_assessment": "medium",
+    "position_sizing_factor": "moderate"
+  },
+  "level_alerts": {
+    "immediate_watch_levels": [1403.41, 1431.90],
+    "breakout_levels": [1431.90, 1461.40],
+    "invalidation_levels": [1403.41, 1372.58]
+  },
+  "confidence_score": 100,
+  "key_insight": "Price is currently positioned at a critical very high reliability support level of ₹1403.41, suggesting a potential buying opportunity."
+}
+```

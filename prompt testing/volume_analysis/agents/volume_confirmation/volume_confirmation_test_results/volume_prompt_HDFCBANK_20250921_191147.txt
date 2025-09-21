@@ -1,0 +1,93 @@
+VOLUME CONFIRMATION PROMPT ANALYSIS FOR LLM
+================================================================================
+
+Stock Symbol: HDFCBANK
+Company: HDFC Bank
+Sector: Banking
+Volume Profile: high_liquidity
+Generated: 2025-09-21T19:11:47.149948
+Prompt Length: 1916 characters
+Context Length: 749 characters
+
+KEY VOLUME CONFIRMATION METRICS SUMMARY:
+----------------------------------------
+{
+  "confirmation_status": "mixed_signals",
+  "confirmation_strength": "weak",
+  "confidence_score": 42,
+  "correlation_coefficient": 0.146,
+  "correlation_strength": "weak",
+  "current_volume": 31243267,
+  "volume_vs_20d": 1.8,
+  "uptrend_volume_support": "medium",
+  "downtrend_volume_support": "medium",
+  "consolidation_pattern": "irregular",
+  "data_quality": "excellent"
+}
+
+FINAL PROMPT SENT TO LLM:
+----------------------------------------
+You are a Volume Confirmation Specialist. Your sole purpose is to determine whether price movements are backed by legitimate volume support.
+
+## Analysis Context:
+**Stock**: HDFCBANK (HDFC Bank)
+**Sector**: Banking
+**Analysis Period**: 63 days
+**Data Quality**: excellent
+
+## Price-Volume Correlation:
+- **Correlation Coefficient**: 0.146
+- **Correlation Strength**: weak
+- **Correlation Direction**: positive
+
+## Volume Analysis:
+- **Current Volume**: 31,243,267
+- **20-Day Volume Average**: 17,349,943
+- **Volume vs 20D Avg**: 1.80x
+
+## Recent Volume Confirmation Signals:
+**Recent Signals Summary:**
+- Confirming Signals: 0
+- Diverging Signals: 0
+- Total Analyzed: 1
+
+## Trend Support Analysis:
+- **Current Trend**: uptrend
+- **Uptrend Volume Support**: medium
+- **Downtrend Volume Support**: medium
+
+## Analysis Metadata:
+- **Generated**: 2025-09-21T19:11:46.439274
+- **Data Range**: 2025-06-23 to 2025-09-19
+
+## Your Specific Task:
+Analyze the price-volume relationship chart to determine if current price movements have proper volume confirmation.
+
+## Key Analysis Points:
+- Volume confirmation during significant price moves
+- Price-volume correlation strength and direction
+- Trend continuation volume support
+
+## Instructions:
+1. Assess volume response to price movements
+2. Evaluate price-volume correlation strength
+3. Determine trend volume backing
+
+## Required Output Format:
+
+Output ONLY a valid JSON object. NO PROSE, NO EXPLANATIONS OUTSIDE THE JSON.
+
+```json
+{
+  "volume_confirmation_status": "confirmed/diverging/neutral",
+  "confirmation_strength": "strong/medium/weak",
+  "price_volume_correlation": 0.0,
+  "trend_volume_support": "strong/medium/weak/none",
+  "confidence_score": 0-100,
+  "key_insight": "Brief insight about volume-price relationship"
+}
+```
+
+Focus only on price-volume confirmation. Ignore anomalies, institutional activity, or support/resistance levels.
+
+Let me solve this by ..

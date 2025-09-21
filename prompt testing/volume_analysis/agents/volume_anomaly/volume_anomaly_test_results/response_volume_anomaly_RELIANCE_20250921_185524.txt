@@ -1,0 +1,29 @@
+VOLUME ANOMALY DETECTION LLM RESPONSE
+================================================================================
+
+Stock Symbol: RELIANCE
+Company: Reliance Industries
+Sector: Energy/Petrochemicals
+Response Time: 2025-09-21T18:55:24.950173
+Response Length: 548 characters
+Code Executions: 2 snippets
+Calculation Results: 2 outputs
+
+COMPLETE LLM RESPONSE:
+----------------------------------------
+```json
+{
+  "statistical_anomalies": [],
+  "anomaly_frequency": "low",
+  "anomaly_pattern": "irregular",
+  "current_volume_status": "normal",
+  "volume_percentile": 50,
+  "statistical_summary": {
+    "total_outliers": 0,
+    "extreme_outliers": 0,
+    "significant_outliers": 0
+  },
+  "confidence_score": 70,
+  "key_insight": "Current volume exhibits a very low Z-score (0.12), indicating it is well within normal statistical bounds with no immediate signs of anomaly. No historical outliers were detected based on the provided summary data."
+}
+```
