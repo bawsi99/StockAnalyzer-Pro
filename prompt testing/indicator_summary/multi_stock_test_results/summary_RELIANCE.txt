@@ -1,0 +1,4 @@
+symbol=RELIANCE
+prompt_length=1772
+response_length=1355
+response_path=/Users/aaryanmanawat/Aaryan/StockAnalyzer Pro/version3.0/3.0/prompt testing/indicator_summary/multi_stock_test_results/response_analysis_RELIANCE_20250925_161145.txt

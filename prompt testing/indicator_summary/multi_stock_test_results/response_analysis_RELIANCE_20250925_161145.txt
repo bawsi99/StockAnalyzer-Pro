@@ -1,0 +1,120 @@
+LLM ANALYSIS RESULTS
+================================================================================
+
+Stock Symbol: RELIANCE
+Response Time: 2025-09-25T16:11:45.597323
+Response Length: 1355 characters
+
+FINAL PROMPT SENT TO LLM:
+----------------------------------------
+You are a technical analyst. Analyze the provided indicators and generate actionable trading insights.
+
+## Analysis Context:
+**Symbol**: RELIANCE | **Timeframe**: 365 days, day
+
+## Technical Data:
+{
+ "trend_indicators": {
+  "direction": "neutral",
+  "strength": "weak",
+  "confidence": 0.0
+ },
+ "momentum_indicators": {
+  "rsi_status": "neutral",
+  "direction": "neutral",
+  "strength": "weak",
+  "confidence": 0.0
+ }
+}
+
+## Levels:
+{}
+
+## Signal Conflicts: None detected
+
+
+
+
+## Required JSON Output:
+
+```json
+{
+  "trend_analysis": {
+    "direction": "bullish|bearish|neutral",
+    "strength": "strong|moderate|weak",
+    "confidence": 0-100,
+    "key_signals": ["primary trend indicators"]
+  },
+  "momentum": {
+    "rsi_signal": "overbought|oversold|neutral",
+    "macd_signal": "bullish|bearish|neutral",
+    "momentum_strength": "strong|moderate|weak"
+  },
+  "critical_levels": {
+    "nearest_support": 0.0,
+    "nearest_resistance": 0.0,
+    "key_levels": [{ "price": 0.0, "type": "support|resistance" }]
+  },
+  "trading_recommendation": {
+    "bias": "bullish|bearish|neutral",
+    "confidence": 0-100,
+    "entry_price": 0.0,
+    "target_price": 0.0,
+    "stop_loss": 0.0,
+    "rationale": "Clear reasoning for recommendation"
+  },
+  "conflicts_resolved": "How any indicator conflicts were resolved",
+  "confidence_score": 0-100
+}
+```
+
+## Instructions:
+1. Analyze trend using both SMA (stability) and EMA (responsiveness)
+2. Use EMA for entry signals, SMA for trend confirmation
+3. Assess momentum using RSI and MACD signals
+4. Identify critical support/resistance levels
+5. Provide one clear trading recommendation
+6. Resolve any conflicts between indicators
+
+**Output Requirements:**
+- Return ONLY valid JSON
+- Use provided data to populate specific price levels
+- Include clear rationale for recommendations
+
+
+Let me solve this by ..
+
+COMPLETE LLM RESPONSE:
+----------------------------------------
+```json
+```json
+{
+  "trend_analysis": {
+    "direction": "neutral",
+    "strength": "weak",
+    "confidence": 0,
+    "key_signals": ["Weak, neutral trend observed across indicators"]
+  },
+  "momentum": {
+    "rsi_signal": "neutral",
+    "macd_signal": "neutral",
+    "momentum_strength": "weak"
+  },
+  "critical_levels": {
+    "nearest_support": 0.0,
+    "nearest_resistance": 0.0,
+    "key_levels": []
+  },
+  "trading_recommendation": {
+    "bias": "neutral",
+    "confidence": 0,
+    "entry_price": 0.0,
+    "target_price": 0.0,
+    "stop_loss": 0.0,
+    "rationale": "All available indicators (trend and momentum) point to a neutral direction with weak strength and zero confidence. The RSI is neutral, and without MACD data or specific price levels (support/resistance, SMA/EMA values), there is no basis to form a directional trading bias or identify specific entry/target/stop-loss prices. The market for RELIANCE appears to be consolidating with no clear direction over the 365-day timeframe. It is recommended to observe for clearer signals or further price action before considering any directional trades. The absence of specific levels also prevents the identification of key breakout or breakdown points."
+  },
+  "conflicts_resolved": "None detected, as all provided indicators show consistent neutral and weak signals.",
+  "confidence_score": 0
+}
+```
+```
