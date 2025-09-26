@@ -1,0 +1,51 @@
+LLM ANALYSIS RESULTS
+================================================================================
+
+Stock Symbol: HDFCBANK
+Response Time: 2025-09-26T17:40:41.811120
+Response Length: 3027 characters
+
+COMPLETE LLM RESPONSE:
+----------------------------------------
+```json
+{
+  "trend_analysis": {
+    "direction": "bearish",
+    "strength": "moderate",
+    "confidence": 68.33,
+    "key_signals": [
+      "Overall trend direction is bearish, as indicated by primary trend indicators.",
+      "SMA 20 (960.89) is below SMA 50 (980.47), confirming short-term bearish momentum.",
+      "EMA 20 (963.15) is below EMA 50 (971.96), indicating responsive bearish movement.",
+      "The implied current price (approx. 948.76, derived from price_to_sma_200) is trading below both short-term SMAs/EMAs, but above the long-term SMA 200 (930.16), creating a mixed signal with shorter-term averages."
+    ]
+  },
+  "momentum": {
+    "rsi_signal": "oversold",
+    "macd_signal": "bearish",
+    "momentum_strength": "strong"
+  },
+  "critical_levels": {
+    "nearest_support": 887.5,
+    "nearest_resistance": 975.0,
+    "key_levels": [
+      { "price": 887.5, "type": "support" },
+      { "price": 869.1, "type": "support" },
+      { "price": 849.0, "type": "support" },
+      { "price": 975.0, "type": "resistance" },
+      { "price": 998.2, "type": "resistance" },
+      { "price": 1018.8, "type": "resistance" }
+    ]
+  },
+  "trading_recommendation": {
+    "bias": "bearish",
+    "confidence": 45,
+    "entry_price": 971.96,
+    "target_price": 887.5,
+    "stop_loss": 998.2,
+    "rationale": "The overall trend for HDFCBANK is bearish, strongly supported by the alignment of short-term SMAs and EMAs (SMA 20 < SMA 50, EMA 20 < EMA 50) and a strong bearish MACD. However, the RSI is deeply oversold (27.65), which often precedes a short-term relief rally or suggests an exhaustion of immediate selling pressure. Given these high-severity conflicting signals, a cautious bearish strategy is recommended. Traders may consider initiating a short position if the price bounces towards the EMA 50 (971.96), which acts as dynamic resistance and an entry signal. The target for this short position would be the nearest significant support level at 887.5, with a stop loss placed above the next key resistance at 998.2. This strategy aims to align with the dominant bearish trend while prudently accounting for potential short-term counter-trend movements indicated by the oversold RSI."
+  },
+  "conflicts_resolved": "The high-severity conflicts, specifically the mixed moving average alignment (price above long-term SMA 200 but below shorter-term MAs) and the divergence between an oversold RSI (suggesting a potential bounce) and a strong bearish MACD (confirming downtrend), necessitate a highly cautious and tactical approach. The resolution is to prioritize the dominant bearish trend (confirmed by MACD and SMAs) but to wait for a potential short-term bounce (due to the oversold RSI) into established resistance levels (like EMA 50) before considering a short entry. This approach mitigates risk by waiting for a more favorable entry point in the direction of the underlying trend, aligning with the provided guidance to 'wait for clearer signals or reduce position size'.",
+  "confidence_score": 45
+}
+```
