@@ -344,6 +344,10 @@ CHART_MAX_SIZE_MB=100
 CHART_CLEANUP_INTERVAL_MINUTES=30
 ```
 
+##
+notes:
+
+an agent is an api request to a large language model
 ---
 
 **Quick Help**: Run `sap-health` to check all services (Data:8001, Analysis:8002, Database:8003), `sap-start` to start the backend, and `sap-frontend` to start the development server.
