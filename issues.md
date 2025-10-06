@@ -173,7 +173,17 @@ Each fix will include:
 •  Proper error logging for debugging
 
 
-pattern analysis agent 
+add a calender converter so that the agents gives days, and zerodha client translates it into from and to dates, with market open close awareness
+pattern analysis agent , fix issues with 1min and 5 min data, insufficient due to saturday sunday 
+
+
+
+delete redis cache manager\
+
+support resistance volume agents fails even after 280 second time, currently agent collection timeout reduced to 150
+instituional acticity sometimes crosses 150, usually around 130
+
+so many local caches, please check 
 
 
 Would you like me to start implementing these fixes in this order, or would you prefer to focus on specific issues first?
