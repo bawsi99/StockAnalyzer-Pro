@@ -199,10 +199,10 @@ dmypy.json
 
 # Test files
 test_fixes.py 
-# TraderPro generated artifacts
+# StockAnalyzerPro generated artifacts
 backend/cache/
 backend/myenv/
-backend/.env
+backend/.venv
 
 # Project-specific excludes
 agentic_trading_system/
@@ -212,45 +212,12 @@ backend/logs/
 backend/scripts/
 backend/output/
 
-# Development and testing files
-backend/check_cors.py
-backend/load_tester.py
-backend/quick_test_endpoints.py
-backend/quick_validation.py
-backend/investigate_fallbacks.py
-backend/memory_monitor.py
-backend/setup_testing.py
-backend/demo_memory_tools.py
-backend/system_health_check.py
-frontend/test_backend_connection.html
-
 # Service runtime files
 *.pid
 *.log
 data_service.log
 analysis_service.log
 
-# Development scripts
-backend/generate_jwt_secret.py
-backend/setup_env.py
-backend/setup_database.py
-backend/migrate_to_redis_cache.py
-backend/update_cache_config.py
-
-# Redundant service start scripts
-backend/run_services_simple.py
-backend/run_with_websocket.py
-backend/start_all_services.py
-backend/start_consolidated_service.py
-backend/start_zerodha_ws.py
-backend/start_with_cors_fix.py
-
-# Duplicate files - keep only in backend directory
-/zerodha_instruments.csv
-/frontend/zerodha_instruments.csv
-
-# Data files that change frequently - don't track
-backend/data/zerodha_instruments.csv
 
 # Cache files - don't track
 cache/
