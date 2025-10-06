@@ -1,3 +1,5 @@
+optimize gemini files, espcially response extraction logic for all
+
 
 2. Stock Symbol Not Populated in Output
 
