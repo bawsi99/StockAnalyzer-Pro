@@ -1,4 +1,16 @@
-optimize gemini files, espcially response extraction logic for all
+optimize gemini files, espcially response extraction logic for all, use this: # Primary method
+text_response, code_results, execution_results = await self.core.call_llm_with_code_execution(
+    prompt, return_full_response=False
+)
+
+# ✅ CORRECT fallback (same logic as sector agent)
+if not text_response or not isinstance(text_response, str) or not text_response.strip():
+    # Use call_llm's internal text extraction logic
+    fallback_text = await loop.run_in_executor(None, lambda: self.core.call_llm(prompt, return_full_response=False))
+    if fallback_text and isinstance(fallback_text, str) and fallback_text.strip():
+        text_response = fallback_text, 
+
+make this standard
 
 
 2. Stock Symbol Not Populated in Output
