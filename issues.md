@@ -13,6 +13,9 @@ if not text_response or not isinstance(text_response, str) or not text_response.
 make this standard
 
 
+##### not all volume agents returning response please check in final decision agent prompt debug, sometimes it shows 3 or 4 or 5, in debug all agents show successful, is text not extrcated properly?
+
+token counter mechanism
 2. Stock Symbol Not Populated in Output
 
 In the final decision JSON (line 3 of final_decision_RELIANCE_20251003_120016.json):
