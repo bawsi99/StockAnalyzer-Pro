@@ -1,21 +1,9 @@
-optimize gemini files, espcially response extraction logic for all, use this: # Primary method
-text_response, code_results, execution_results = await self.core.call_llm_with_code_execution(
-    prompt, return_full_response=False
-)
-
-# ✅ CORRECT fallback (same logic as sector agent)
-if not text_response or not isinstance(text_response, str) or not text_response.strip():
-    # Use call_llm's internal text extraction logic
-    fallback_text = await loop.run_in_executor(None, lambda: self.core.call_llm(prompt, return_full_response=False))
-    if fallback_text and isinstance(fallback_text, str) and fallback_text.strip():
-        text_response = fallback_text, 
-
-make this standard
+some symbols not found, rejext if main data not found 
 
 
 ##### not all volume agents returning response please check in final decision agent prompt debug, sometimes it shows 3 or 4 or 5, in debug all agents show successful, is text not extrcated properly?
 
-token counter mechanism
+
 2. Stock Symbol Not Populated in Output
 
 In the final decision JSON (line 3 of final_decision_RELIANCE_20251003_120016.json):
@@ -174,17 +162,6 @@ Each fix will include:
 •  Fallback mechanisms where appropriate
 •  Clear user feedback
 •  Proper error logging for debugging
-
-
-add a calender converter so that the agents gives days, and zerodha client translates it into from and to dates, with market open close awareness
-pattern analysis agent , fix issues with 1min and 5 min data, insufficient due to saturday sunday 
-
-
-
-delete redis cache manager\
-
-support resistance volume agents fails even after 280 second time, currently agent collection timeout reduced to 150
-instituional acticity sometimes crosses 150, usually around 130
 
 so many local caches, please check 
 
