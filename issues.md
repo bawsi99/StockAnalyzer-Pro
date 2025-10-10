@@ -1,7 +1,8 @@
-some symbols not found, rejext if main data not found 
+pattern analysis agent
 
+can you connect websocket directly from frontend to zerodha insted of a separate service?
 
-##### not all volume agents returning response please check in final decision agent prompt debug, sometimes it shows 3 or 4 or 5, in debug all agents show successful, is text not extrcated properly?
+Machine learning
 
 
 2. Stock Symbol Not Populated in Output
