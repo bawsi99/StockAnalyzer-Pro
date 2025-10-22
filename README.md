@@ -64,7 +64,28 @@ backend/
 ├── ml/                       # Machine learning components
 │   ├── hybrid_ml_engine.py   # Hybrid ML analysis engine
 │   ├── model.py              # ML model training and inference
-│   └── dataset.py            # Data pipeline and feature engineering
+│   ├── dataset.py            # Data pipeline and feature engineering
+│   ├── data_processing/      # ML data processing pipeline
+│   │   ├── build_dataset.py  # Feature engineering (40+ indicators)
+│   │   ├── build_labels.py   # Label generation with forward returns
+│   │   ├── combine_processed.py # Multi-stock dataset consolidation
+│   │   ├── multi_stock_processor.py # Unified multi-stock pipeline
+│   │   ├── split_and_standardize.py # Data splitting & normalization
+│   │   └── qc_dataset.py     # Quality control checks
+│   ├── training/             # Model training scripts
+│   │   ├── train_multi_models.py # Multi-model training framework
+│   │   ├── train_logistic.py # Logistic regression training
+│   │   └── analyze_results.py # Performance analysis
+│   ├── models/               # Trained model artifacts
+│   │   └── multi_model_YYYYMMDD_HHMMSS/
+│   │       ├── *.joblib      # Serialized models
+│   │       ├── *_test_predictions.csv
+│   │       ├── model_comparison_summary.csv
+│   │       └── all_models_metrics.json
+│   └── data/                 # ML datasets
+│       ├── raw/              # Raw OHLCV data (symbol=*/timeframe=*/)
+│       ├── processed/        # Processed features & labels
+│       └── data_YYYYMMDD_HHMMSS/ # Combined dataset runs
 └── quant_system/             # Quantitative analysis tools
     ├── backtesting_engine.py # Advanced backtesting capabilities
     ├── risk_management.py    # Risk assessment and management
@@ -239,6 +260,219 @@ npm run dev
 - **Health Checks**: 
   - http://localhost:8000/health
   - http://localhost:8001/health
+
+## 🧠 Machine Learning & Data Processing
+
+### ML Pipeline Overview
+
+The ML system provides automated trading signals by predicting profitable opportunities across multiple stocks and timeframes.
+
+#### **Supported Models**
+- **Logistic Regression**: L2-regularized, balanced class weights
+- **Random Forest**: 200 estimators, max_depth=4
+- **Gradient Boosting**: 50 estimators, learning_rate=0.05
+- **XGBoost**: Advanced gradient boosting with regularization
+- **LightGBM**: Fast gradient boosting with optimized memory usage
+
+#### **Default Stock Universe**
+```python
+RELIANCE, TCS, INFY, HDFCBANK, ICICIBANK, 
+ITC, SBIN, BAJFINANCE, BHARTIARTL, HINDUNILVR
+```
+
+#### **Timeframe Configurations**
+| Timeframe | Horizon | Est. Cost | Use Case |
+|-----------|---------|-----------|----------|
+| 5m | 12 bars (1hr) | 8 bps | High-frequency trading |
+| 15m | 8 bars (2hrs) | 7 bps | Intraday swing |
+| 1h | 12 bars (12hrs) | 6 bps | End-of-day |
+| 1d | 5 bars (5 days) | 5 bps | Swing/position |
+
+### ML Data Processing Workflow
+
+#### **Option 1: Multi-Stock Unified Pipeline (Recommended)**
+```bash
+cd backend/agents/ml/data_processing
+
+# Process all stocks and timeframes in one go
+python multi_stock_processor.py \
+  --base_dir ../data/raw \
+  --output_dir ../data/processed/multi_stock \
+  --symbols RELIANCE TCS INFY \
+  --timeframes 5m 15m 1h 1d \
+  --train_pct 0.6 --val_pct 0.2 --test_pct 0.2
+
+# Output: train.csv, val.csv, test.csv, scaler.json, processing_metadata.json
+```
+
+**What it does:**
+1. Consolidates raw OHLCV data from all symbol/timeframe combinations
+2. Applies 40+ technical indicators uniformly across all stocks
+3. Creates forward-looking labels (y_cls, y_reg) with transaction costs
+4. Performs quality control (removes outliers, validates data)
+5. Creates temporal train/val/test splits (60/20/20 by default)
+6. Standardizes features using training set statistics
+7. Saves ready-to-train datasets with metadata
+
+#### **Option 2: Individual Stock Pipeline**
+```bash
+cd backend/agents/ml/data_processing
+
+# Step 1: Build features (40+ technical indicators)
+python build_dataset.py \
+  ../data/raw/symbol=RELIANCE/timeframe=1d/bars.csv \
+  --output_csv ../data/processed/symbol=RELIANCE/timeframe=1d/features.csv
+
+# Step 2: Generate labels (y_cls, y_reg)
+python build_labels.py \
+  ../data/processed/symbol=RELIANCE/timeframe=1d/features.csv \
+  --timeframe 1d
+
+# Step 3: Quality control
+python qc_dataset.py \
+  ../data/processed/symbol=RELIANCE/timeframe=1d/labels.csv
+
+# Step 4: Combine multiple stocks (optional)
+python combine_processed.py \
+  --processed_dir ../data/processed \
+  --symbols RELIANCE TCS INFY \
+  --timeframes 1d 1h 15m
+
+# Step 5: Split and standardize
+python split_and_standardize.py \
+  --input_csv ../data/data_20241022_120000/combined_raw.csv \
+  --train_pct 0.7 --val_pct 0.15 --test_pct 0.15
+```
+
+### Training Machine Learning Models
+
+#### **Multi-Model Training**
+```bash
+cd backend/agents/ml/training
+
+# Train all available models
+python train_multi_models.py \
+  --splits_dir ../data/processed/multi_stock/run_20241022_124619
+
+# Train specific models only
+python train_multi_models.py \
+  --splits_dir ../data/processed/multi_stock/run_20241022_124619 \
+  --models logistic xgboost lightgbm
+```
+
+**Output artifacts:**
+```
+backend/agents/ml/models/multi_model_20241022_124619/
+├── logistic.joblib                     # Trained logistic regression
+├── random_forest.joblib                # Trained random forest
+├── gradient_boosting.joblib            # Trained gradient boosting
+├── xgboost.joblib                      # Trained XGBoost
+├── lightgbm.joblib                     # Trained LightGBM
+├── *_test_predictions.csv              # Per-model test predictions
+├── model_comparison_summary.csv        # Performance comparison
+├── all_models_metrics.json             # Comprehensive metrics
+└── roc_curves_comparison.png           # ROC curve visualization
+```
+
+### ML Features (40+ Technical Indicators)
+
+**Volatility (3):** `atr_14_pct`, `atr_vol_20`, `range_pct`  
+**Trend (2):** `dist_sma50_pct`, `macd_hist`  
+**Bollinger Bands (1):** `bb_bw_20`  
+**Volume (5):** `vol_ratio_20`, `vol_cv_20`, `cmf_20`, `up_down_vol_ratio_20`, `ret_vol_corr_20`  
+**Price Position (4):** `pct_dist_to_20_high`, `breakout_up_20`, `breakout_down_20`, `vwap_dist`  
+**VWAP (2):** `vwap_dist`, `vwap_slope_5`  
+**Candlestick (8):** `wick_to_body_ratio`, `inside_bar`, `engulfing`, `gap_pct`, `up_streak`, `down_streak`, `wick_up_streak_3`, `wick_down_streak_3`  
+**Statistical (2):** `ret_skew_20`, `ret_kurt_20`  
+**Calendar (8):** `dow`, `dow_sin`, `dow_cos`, `hour`, `hour_sin`, `hour_cos`
+
+### Labels (Target Variables)
+
+**y_reg (Continuous)**: Forward log-return after transaction costs  
+```python
+y_reg = ln(future_price / current_price) - (cost_bps / 10000)
+```
+
+**y_cls (Binary)**: Classification target (1 = profitable, 0 = unprofitable)  
+```python
+y_cls = 1 if y_reg > 0 else 0
+```
+
+### Dataset Structure
+
+#### **Raw Data Format**
+```
+backend/agents/ml/data/raw/
+├── symbol=RELIANCE/
+│   ├── timeframe=5m/
+│   │   └── bars.csv (or bars.parquet)
+│   ├── timeframe=15m/
+│   │   └── bars.csv
+│   ├── timeframe=1h/
+│   │   └── bars.csv
+│   └── timeframe=1d/
+│       └── bars.csv
+├── symbol=TCS/
+│   └── ...
+```
+
+**Required columns:** `open`, `high`, `low`, `close`, `volume`, datetime index
+
+#### **Processed Data Format**
+```
+backend/agents/ml/data/processed/
+├── symbol=RELIANCE/
+│   └── timeframe=1d/
+│       ├── features.csv           # 40+ engineered features
+│       ├── labels.csv             # features + y_cls + y_reg
+│       └── labels_capped_cleaned.csv  # QC-applied version
+```
+
+#### **Combined Dataset Format**
+```
+backend/agents/ml/data/data_20241022_120000/
+├── combined_raw.csv               # All symbols/timeframes combined
+├── combine_metadata.json          # Dataset coverage info
+├── train.csv                      # Training split
+├── val.csv                        # Validation split  
+├── test.csv                       # Test split
+├── train_standardized.csv         # Standardized training data
+├── scaler.json                    # Standardization parameters
+└── split_metadata.json            # Split statistics
+```
+
+### Quality Control Checks
+
+The QC pipeline applies:
+- **Missing data**: Max 10% NaN features per row
+- **Minimum samples**: 100+ periods per symbol/timeframe group
+- **Outlier removal**: IQR method with 3.0x factor
+- **Distribution validation**: Checks for data drift
+- **Feature correlation**: Removes highly correlated features (>0.95)
+
+### Model Evaluation Metrics
+
+**Classification Metrics:**
+- **AUC-ROC**: Area under ROC curve (train/val/test)
+- **Average Precision**: Precision-recall curve summary
+
+**Trading Performance:**
+- **Threshold**: Optimized probability cutoff for max returns
+- **Coverage**: % of time model signals "BUY"
+- **Avg Return**: Mean y_reg for signals above threshold
+- **Cumulative Return**: Total y_reg for all signals
+
+### Example Model Comparison Output
+
+```
+Model             Test_AUC   Val_AP    Coverage   Avg_Return   Cum_Return
+─────────────────────────────────────────────────────────────────────────
+XGBoost           0.687      0.594     28.3%      0.0189       4.82
+LightGBM          0.683      0.588     31.2%      0.0174       5.12
+Gradient Boost    0.676      0.581     29.5%      0.0165       4.58
+Random Forest     0.671      0.573     33.1%      0.0158       4.94
+Logistic          0.668      0.569     35.4%      0.0151       5.03
+```
 
 ## 📖 Usage Guide
 
