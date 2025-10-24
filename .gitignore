@@ -24,6 +24,7 @@ yarn-error.log*
 #md files
 issues.md
 warp.md
+rules.txt
 
 # Runtime data
 pids

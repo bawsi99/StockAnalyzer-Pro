@@ -1,5 +1,0 @@
-####instructions
-1.follow KISS principle, keep it simple, stupid. 
-2.make small changes
-3.create validation scripts for each module you create and test
-
