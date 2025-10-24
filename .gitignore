@@ -21,7 +21,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+#md files
 issues.md
+warp.md
 
 # Runtime data
 pids
