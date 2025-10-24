@@ -1,8 +1,8 @@
 pattern analysis agent
 
-can you connect websocket directly from frontend to zerodha insted of a separate service?
+q. can you connect websocket directly from frontend to zerodha insted of a separate service?
 
-Machine learning
+
 
 
 2. Stock Symbol Not Populated in Output

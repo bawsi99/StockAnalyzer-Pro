@@ -21,6 +21,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+issues.md
+
 # Runtime data
 pids
 *.pid
