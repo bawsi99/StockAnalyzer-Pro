@@ -95,7 +95,7 @@ Sub-agents (TA internal architecture):
 ## 📄 Setup & docs
 
 For setup, environment configuration, and deployment guides, see:
-- backend/README.md (backend services)
+- backend/technical_analysis_agent/README.md (backend services)
 - frontend/README.md (frontend app)
 
 
