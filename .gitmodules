@@ -1,0 +1,8 @@
+[submodule "frontend"]
+	path = frontend
+	url = https://github.com/bawsi99/stockanalyzerpro_frontend.git
+	branch = monorepo-import
+[submodule "backend"]
+	path = backend
+	url = https://github.com/bawsi99/stockanalyzerpro_backend.git
+	branch = monorepo-import
