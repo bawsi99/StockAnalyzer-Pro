@@ -11,6 +11,7 @@ This repo also contains a pitchdeck, accepted into video interview stage for a16
 This repository is a monorepo that pulls the backend and frontend as Git submodules. Work primarily happens inside those sub-repos.
 
 - Backend (FastAPI services): backend — https://github.com/bawsi99/stockanalyzerpro_backend
+- Technical Analysis Agent (FastAPI microservices): backend/technical_analysis_agent — https://github.com/bawsi99/stockanalyzerpro_backend_technical_analysis_agent
 - Frontend (React/TypeScript/Vite): frontend — https://github.com/bawsi99/stockanalyzerpro_frontend
 
 Top-level files only provide orchestration and docs for the two sub-repos.
